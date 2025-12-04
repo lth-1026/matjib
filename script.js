@@ -320,6 +320,9 @@ document.addEventListener("DOMContentLoaded", () => {
     backBtn.addEventListener("click", () => {
       document.getElementById("detail-view").style.display = "none";
       document.getElementById("list-view").style.display = "flex";
+
+      // 모든 마커 다시 보이기
+      Object.values(markersById).forEach(m => m.setMap(map));
     });
   }
 
@@ -445,14 +448,17 @@ function loadDetail(id) {
     const backBtn = document.getElementById("backToListBtn");
     if (backBtn) backBtn.style.display = "block";
 
-    // === 지도 이동 ===
+    // === 지도 이동 및 마커 필터링 ===
+    // 모든 마커 숨기기
+    Object.values(markersById).forEach(m => m.setMap(null));
+
     const marker = markersById[id];
     if (marker) {
+      // 선택된 마커만 보이기
+      marker.setMap(map);
+
       // 지도 중심 이동
       map.setCenter(marker.getPosition());
-
-      // 선택된 마커 z-index 조정 등으로 강조 가능 (옵션)
-      // marker.setZIndex(10); 
     }
 
   } else {
