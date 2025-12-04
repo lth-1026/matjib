@@ -238,16 +238,30 @@ function addCommuteItem() {
   ps.keywordSearch(text, function (result, status) {
     // 정상적으로 검색이 완료됐으면 
     if (status === kakao.maps.services.Status.OK) {
-      const coords = {
+      const x = result[0].x;
+      const y = result[0].y;
+      const coords = new kakao.maps.LatLng(y, x);
+
+      // 통근 위치 마커 생성 (구분을 위해 다른 이미지나 색상을 쓸 수 있지만 일단 기본 마커 사용)
+      // 매물 마커와 겹칠 수 있으니 z-index를 높이거나 다른 스타일 적용 고려 가능
+      const marker = new kakao.maps.Marker({
+        position: coords,
+        map: map
+      });
+
+      const locationData = {
         name: text,
-        x: result[0].x, // 경도 (lng)
-        y: result[0].y  // 위도 (lat)
+        x: x, // 경도 (lng)
+        y: y, // 위도 (lat)
+        marker: marker // 마커 객체 저장
       };
 
       // 좌표 배열에 저장
-      commuteLocations.push(coords);
-      console.log("통근 위치 추가됨:", coords);
-      console.log("현재 통근 위치 목록:", commuteLocations);
+      commuteLocations.push(locationData);
+      console.log("통근 위치 추가됨:", locationData);
+
+      // 지도 중심 이동
+      map.setCenter(coords);
 
       // UI 추가
       const item = document.createElement("div");
@@ -255,7 +269,7 @@ function addCommuteItem() {
 
       const nameSpan = document.createElement("span");
       nameSpan.className = "commute-item-name";
-      nameSpan.textContent = text; // 입력한 텍스트 그대로 사용 (또는 result[0].place_name 사용 가능)
+      nameSpan.textContent = text; // 입력한 텍스트 그대로 사용
 
       // 아래 네줄은 php로 넘어갈 유저 요구사항 배열
       const hidden = document.createElement("input");
@@ -269,10 +283,13 @@ function addCommuteItem() {
       removeBtn.textContent = "x";
       removeBtn.addEventListener("click", () => {
         commuteList.removeChild(item);
+
+        // 마커 지도에서 제거
+        marker.setMap(null);
+
         // 배열에서도 삭제
         commuteLocations = commuteLocations.filter(loc => loc.name !== text);
         console.log("통근 위치 삭제됨:", text);
-        console.log("현재 통근 위치 목록:", commuteLocations);
       });
 
       item.appendChild(nameSpan);
