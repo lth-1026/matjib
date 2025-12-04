@@ -1,0 +1,237 @@
+<!DOCTYPE html>
+<html lang="ja">
+
+<head>
+  <meta charset="UTF-8" />
+  <title>맺집matjib</title>
+  <link rel="stylesheet" href="style.css" />
+  <link href="https://fonts.googleapis.com/css2?family=Bagel+Fat+One&display=swap" rel="stylesheet">
+
+  <!-- 카카오맵 api -->
+  <script type="text/javascript"
+    src="//dapi.kakao.com/v2/maps/sdk.js?appkey=fabcdf8a2877491299feeb61e0335ab3&autoload=false&libraries=services">
+    </script>
+</head>
+
+<body>
+  <header>
+    맺집
+  </header>
+  <div class="layout">
+    <form method="post" id="userForm">
+
+      <aside class="sidebar">
+
+        <input type="hidden" name="rentType" id="rentTypeInput">
+
+        <div class="section-title">거래유형</div>
+        <div class="chip-row" id="rent-type">
+          <button class="chip active" type="button">전체</button>
+          <button class="chip" type="button">월세</button>
+          <button class="chip" type="button">전세</button>
+        </div>
+
+        <!-- 보증금 슬라이드바ー -->
+
+        <div class="section-title">
+          보증금 <span id="depositLabel">(0만 ~ 1920만)</span>
+        </div>
+        <div class="range-group" id="deposit-select">
+          <div class="range-slider">
+            <input type="range" id="depositMin" name="depositMin" min="0" max="5000" value="0">
+            <input type="range" id="depositMax" name="depositMax" min="0" max="5000" value="1920">
+            <div class="slider-track" id="dep-slider"></div>
+          </div>
+        </div>
+
+        <!-- 월세 슬라이드바-->
+
+        <div class="section-title">
+          월세<span id="rentLabel">(0만 ~ 2000만)</span>
+        </div>
+        <div class="range-group">
+          <div class="range-slider">
+            <input type="range" id="rentMin" name="rentMin" min="0" max="2000" value="0">
+            <input type="range" id="rentMax" name="rentMax" min="0" max="2000" value="1200">
+            <div class="slider-track" id="rent-slider"></div>
+          </div>
+        </div>
+
+
+        <div class="switch-row">
+          <span class="switch-label">관리비 포함</span>
+          <label class="switch">
+            <input type="checkbox" name="maintenanceFee" id="includeFee">
+            <span class="slider round"></span>
+          </label>
+        </div>
+
+
+        <input type="hidden" name="area" id="areaInput">
+
+        <div class="section-title">면적</div>
+        <div class="chip-row" id="area-range">
+          <button class="chip active" type="button">전체</button>
+          <button class="chip" type="button">10평 이하</button>
+          <button class="chip" type="button">10평대</button>
+          <button class="chip" type="button">20평대</button>
+          <button class="chip" type="button">30평대</button>
+          <button class="chip" type="button">40평대</button>
+          <button class="chip" type="button">50평대</button>
+          <button class="chip" type="button">60평 이상</button>
+        </div>
+
+        <input type="hidden" name="walk" id="walkInput">
+        <input type="hidden" name="running" id="runningInput">
+        <input type="hidden" name="pet" id="petInput">
+        <input type="hidden" name="gym" id="gymInput">
+        <input type="hidden" name="concert" id="concertInput">
+        <input type="hidden" name="cafe" id="cafeInput">
+        <input type="hidden" name="hiking" id="hikingInput">
+        <input type="hidden" name="baseball" id="baseballInput">
+
+        <div class="section-title">라이프스타일</div>
+        <div class="chip-row" data-multi="true" id="lifestyle">
+          <button class="chip" type="button">산책</button>
+          <button class="chip" type="button">러닝</button>
+          <button class="chip" type="button">반려동물</button>
+          <button class="chip" type="button">헬스</button>
+          <button class="chip" type="button">콘서트</button>
+          <button class="chip" type="button">카페</button>
+          <button class="chip" type="button">등산</button>
+          <button class="chip" type="button">야구</button>
+        </div>
+
+
+        <div class="section-title">통근 위치</div>
+        <div class="commute-section">
+          <div class="commute-input-row">
+            <input type="text" id="commuteInput" class="commute-input" placeholder="직장 또는 학교" name="commute" />
+            <button id="commuteAddBtn" class="commute-add-btn" type="button">추가</button>
+          </div>
+
+          <div id="commuteList" class="commute-list"></div>
+
+
+        </div>
+
+        <input class="button-main" type="submit" value="맺집 찾기">
+      </aside>
+    </form>
+    <main class="map-area">
+      <div id="map"></div>
+    </main>
+
+    <aside class="detail-panel">
+
+      <!-- タイトル + 写真 -->
+      <div class="thumbs">
+        <div id="photo1"></div>
+        <div id="photo2"></div>
+        <div id="photo3"></div>
+      </div>
+
+      <div class="price" id="detailPrice">월세 2000 / 90</div>
+      <div class="meta" id="detailMeta">원룸 (분리형) · 33.05m² · 2층 / 4층 · 10만원</div>
+
+
+      <!-- 物件要素 아이콘 -->
+      <div class="detail-icons">
+        <div class="detail-icon">
+          🏠 <span id="iconRoomType">원룸(분리형)</span>
+        </div>
+        <div class="detail-icon">
+          📐 <span id="iconArea">33.05m²</span>
+        </div>
+        <div class="detail-icon">
+          🏢 <span id="iconFloor">2층/4층</span>
+        </div>
+        <div class="detail-icon">
+          💰 <span id="iconFee">10만원</span>
+        </div>
+
+      </div>
+
+      <!-- 사용자 지정 옵션 -->
+
+      <div class="detail-section-title">키워드</div>
+      <div class="icon-list">
+        <div class="icon-pill" id="kw-walk">🚶 산책</div>
+        <div class="icon-pill" id="kw-running">🏃 러닝</div>
+        <div class="icon-pill" id="kw-pet">🐶 반려동물</div>
+        <div class="icon-pill" id="kw-gym">💪 헬스</div>
+        <div class="icon-pill" id="kw-concert">🎵 콘서트</div>
+        <div class="icon-pill" id="kw-cafe">☕ 카페</div>
+        <div class="icon-pill" id="kw-hiking">⛰ 등산</div>
+        <div class="icon-pill" id="kw-baseball">⚾ 야구</div>
+      </div>
+
+
+      <!-- 상세정보 -->
+      <div class="detail-section-title">상세정보</div>
+      <div class="detail-table">
+        <div class="row"><span class="label">전용면적</span><span class="value" id="d-area">33.05m²</span></div>
+        <div class="row"><span class="label">방 수 / 욕실 수</span><span class="value" id="d-roomsBaths">1개 / 1개</span></div>
+        <div class="row"><span class="label">방향</span><span class="value" id="d-direction">남동</span></div>
+        <div class="row"><span class="label">난방종류</span><span class="value" id="d-heating">개별난방</span></div>
+        <div class="row"><span class="label">엘리베이터</span><span class="value" id="d-elevator">있음</span></div>
+        <div class="row"><span class="label">총 주차대수</span><span class="value" id="d-parking">5대</span></div>
+        <div class="row"><span class="label">입주가능일</span><span class="value" id="d-moveIn">2026.01.06</span></div>
+        <div class="row"><span class="label">건축용도</span><span class="value" id="d-buildingType">단독주택</span></div>
+      </div>
+
+
+      <!-- 편의시설 -->
+      <div class="detail-section-title">편의시설</div>
+      <div class="facility-icons">
+        <div class="facility">
+          🚌 <span>버스</span>
+        </div>
+        <div class="facility">
+          🚇 <span>지하철역</span>
+        </div>
+        <div class="facility">
+          🏪 <span>편의점</span>
+        </div>
+        <div class="facility">
+          🏦 <span>은행</span>
+        </div>
+      </div>
+
+      <!-- 주변 교통정보 -->
+      <div class="detail-section-title">주변 교통정보</div>
+
+      <div class="transport-block">
+        <div class="transport-title">지하철</div>
+        <div class="transport-item">
+          <span class="subway-line line2">2호선</span> 구의역 · <b>678m</b>
+        </div>
+        <div class="transport-item">
+          <span class="subway-line line7">7호선</span> 어린이대공원역 · <b>780m</b>
+        </div>
+        <div class="transport-item">
+          <span class="subway-line line2">2호선</span> 강변역 · <b>990m</b>
+        </div>
+      </div>
+
+      <div class="transport-block">
+        <div class="transport-title">버스</div>
+        <div class="transport-item">
+          <span class="bus-line green">2222</span> 건대역방면 · <b>228m</b>
+        </div>
+        <div class="transport-item">
+          <span class="bus-line red">102</span> 잠실방면 · <b>350m</b>
+        </div>
+        <div class="transport-item">
+          <span class="bus-line blue">441</span> 강남방면 · <b>535m</b>
+        </div>
+      </div>
+
+    </aside>
+
+  </div>
+
+  <script src="script.js"></script>
+</body>
+
+</html>
