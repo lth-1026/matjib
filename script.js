@@ -1,3 +1,8 @@
+
+let map;
+let allHouses = []; // Store all house data
+let markers = []; // Store current markers
+
 // ========== 보증금 슬라이더 입력처리 ==========
 const minInput = document.getElementById("depositMin");
 const maxInput = document.getElementById("depositMax");
@@ -112,46 +117,90 @@ document.querySelectorAll(".chip-row").forEach((row) => {
 document.querySelector("#userForm").addEventListener("submit", (e) => {
   e.preventDefault();
 
-  //렌트타입 저장
-  const activeChipRent = document.querySelector("#rent-type .chip.active");
-  document.getElementById("rentTypeInput").value = activeChipRent ? activeChipRent.textContent : "";
+  // 1. 폼 데이터 수집
+  const rentTypeChip = document.querySelector("#rent-type .chip.active");
+  const rentType = rentTypeChip ? rentTypeChip.textContent : "전체";
 
-  //면적 저장
-  const activeChipArea = document.querySelector("#area-range .chip.active");
-  document.getElementById("areaInput").value = activeChipArea ? activeChipArea.textContent : "";
+  const depositMin = parseInt(document.getElementById("depositMin").value) || 0;
+  const depositMax = parseInt(document.getElementById("depositMax").value) || 0;
 
-  //라이프스타일 저장
-  const chips = document.querySelectorAll("#lifestyle .chip");
-  document.getElementById("walkInput").value = chips[0].classList.contains("active") ? "산책" : 0;
-  document.getElementById("runningInput").value = chips[1].classList.contains("active") ? "러닝" : 0;
-  document.getElementById("petInput").value = chips[2].classList.contains("active") ? "반려동물" : 0;
-  document.getElementById("gymInput").value = chips[3].classList.contains("active") ? "헬스" : 0;
-  document.getElementById("concertInput").value = chips[4].classList.contains("active") ? "콘서트" : 0;
-  document.getElementById("cafeInput").value = chips[5].classList.contains("active") ? "카페" : 0;
-  document.getElementById("hikingInput").value = chips[6].classList.contains("active") ? "등산" : 0;
-  document.getElementById("baseballInput").value = chips[7].classList.contains("active") ? "야구" : 0;
+  const rentMin = parseInt(document.getElementById("rentMin").value) || 0;
+  const rentMax = parseInt(document.getElementById("rentMax").value) || 0;
 
+  const includeFee = document.getElementById("includeFee").checked;
 
-  const formData = new FormData(e.target);
+  const areaChip = document.querySelector("#area-range .chip.active");
+  const areaText = areaChip ? areaChip.textContent : "전체";
 
-  // Static version: search not implemented on server side.
-  // You could implement client-side filtering here using 'allHouses' if needed.
-  console.log("Search form submitted. Data:", Object.fromEntries(formData.entries()));
-  alert("정적 페이지 데모입니다. 검색 기능은 현재 구현되지 않았습니다.");
+  // 라이프스타일 활성화 여부 확인
+  const lifestyleChips = document.querySelectorAll("#lifestyle .chip");
+  const lifestyleConditions = [
+    { key: 'walk', active: lifestyleChips[0].classList.contains("active") },
+    { key: 'running', active: lifestyleChips[1].classList.contains("active") },
+    { key: 'pet', active: lifestyleChips[2].classList.contains("active") },
+    { key: 'gym', active: lifestyleChips[3].classList.contains("active") },
+    { key: 'concert', active: lifestyleChips[4].classList.contains("active") },
+    { key: 'cafe', active: lifestyleChips[5].classList.contains("active") },
+    { key: 'hiking', active: lifestyleChips[6].classList.contains("active") },
+    { key: 'baseball', active: lifestyleChips[7].classList.contains("active") },
+  ];
 
-  /*
-  fetch("matjib.php", {
-    method: "POST",
-    body: formData
-  })
-  .then(res => res.json())
-  .then(data => {
-    updateMap(data);
-    updateDetail(data);
+  // 2. 필터링 로직
+  const filtered = allHouses.filter(item => {
+    const h = item.house;
+    const l = item.lifestyle || {};
+
+    // (1) 거래 유형
+    if (rentType !== "전체" && h.rent_type !== rentType) return false;
+
+    // (2) 보증금
+    if (h.deposit < depositMin || h.deposit > depositMax) return false;
+
+    // (3) 월세 (+관리비)
+    let checkRent = h.rent;
+    if (includeFee) checkRent += h.maintenance_fee;
+    // 전세인 경우 월세가 0이므로 범위에 포함되는지 확인 (보통 0~0 범위가 아니면 제외될 수 있음)
+    // 하지만 사용자 경험상 전세를 선택했을 때 월세 필터가 어떻게 동작할지 고려해야 함.
+    // 여기서는 단순하게 계산된 월세(전세는 0)가 범위 내에 있는지 확인.
+    if (checkRent < rentMin || checkRent > rentMax) return false;
+
+    // (4) 면적 (평수 변환)
+    const pyeong = h.area_m2 / 3.3058;
+    if (areaText !== "전체") {
+      if (areaText === "10평 이하" && pyeong > 10) return false;
+      if (areaText === "10평대" && (pyeong < 10 || pyeong >= 20)) return false;
+      if (areaText === "20평대" && (pyeong < 20 || pyeong >= 30)) return false;
+      if (areaText === "30평대" && (pyeong < 30 || pyeong >= 40)) return false;
+      if (areaText === "40평대" && (pyeong < 40 || pyeong >= 50)) return false;
+      if (areaText === "50평대" && (pyeong < 50 || pyeong >= 60)) return false;
+      if (areaText === "60평 이상" && pyeong < 60) return false;
+    }
+
+    // (5) 라이프스타일 (AND 조건: 선택된 모든 조건 만족해야 함)
+    for (const cond of lifestyleConditions) {
+      if (cond.active) {
+        // 해당 라이프스타일 데이터가 1이어야 함. 데이터가 없거나 0이면 탈락
+        if (!l[cond.key] || l[cond.key] == 0) return false;
+      }
+    }
+
+    return true;
   });
-  */
-}
-);
+
+  // 3. 지도 업데이트
+  console.log(`검색 결과: ${filtered.length}건`);
+  if (filtered.length === 0) {
+    alert("조건에 맞는 매물이 없습니다.");
+  } else {
+    updateMap(filtered);
+
+    // 첫 번째 매물로 중심 이동 및 상세정보 표시
+    const first = filtered[0].house;
+    const moveLatLon = new kakao.maps.LatLng(parseFloat(first.lat), parseFloat(first.lng));
+    map.setCenter(moveLatLon);
+    loadDetail(first.id);
+  }
+});
 
 
 // ========== 통근 위치 추가 ==========
@@ -212,9 +261,6 @@ commuteInput.addEventListener("keydown", (e) => {
 });
 
 
-let map;
-let allHouses = []; // Store all house data
-
 document.addEventListener("DOMContentLoaded", () => {
 
   // SDK 로드가 끝난 뒤에 실행되도록
@@ -233,6 +279,9 @@ document.addEventListener("DOMContentLoaded", () => {
       .then(list => {
         allHouses = list; // Save to global variable
 
+        // 초기 렌더링: 전체 목록 표시
+        updateMap(list);
+
         // 초기 좌표로 건대 매물 (광진구)
         const firstItem = list.find(item => item.house.address.includes("광진구")) || list[0];
         if (firstItem) {
@@ -244,17 +293,6 @@ document.addEventListener("DOMContentLoaded", () => {
           loadDetail(firstItem.house.id);
         }
 
-        // 마커들 찍기 
-        list.forEach(item => {
-          const h = item.house;
-          const pos = new kakao.maps.LatLng(parseFloat(h.lat), parseFloat(h.lng));
-          const marker = new kakao.maps.Marker({ position: pos, map });
-
-          kakao.maps.event.addListener(marker, "click", () => {
-            loadDetail(h.id);
-          });
-        });
-
       })
       .catch(console.error);
 
@@ -262,7 +300,26 @@ document.addEventListener("DOMContentLoaded", () => {
 
 });
 
+function updateMap(list) {
+  // 1. 기존 마커 제거
+  markers.forEach(m => m.setMap(null));
+  markers = [];
 
+  // 2. 새 마커 생성
+  list.forEach(item => {
+    const h = item.house;
+    const pos = new kakao.maps.LatLng(parseFloat(h.lat), parseFloat(h.lng));
+
+    // 마커 이미지 등을 커스텀하려면 여기서 설정
+    const marker = new kakao.maps.Marker({ position: pos, map: map });
+
+    kakao.maps.event.addListener(marker, "click", () => {
+      loadDetail(h.id);
+    });
+
+    markers.push(marker);
+  });
+}
 
 function loadDetail(id) {
   // Find data from global array instead of fetching
