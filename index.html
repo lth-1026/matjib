@@ -24,6 +24,7 @@
 </head>
 
 <body>
+
   <header>
     맺집
   </header>
@@ -125,7 +126,7 @@
 
         </div>
 
-        <input class="button-main" type="submit" value="맺집 찾기">
+        <button class="button-main" type="submit" id="searchBtn">맺집 찾기</button>
       </aside>
     </form>
     <main class="map-area">
@@ -134,107 +135,120 @@
 
     <aside class="detail-panel">
 
-      <!-- タイトル + 写真 -->
-      <div class="thumbs">
-        <div id="photo1"></div>
-        <div id="photo2"></div>
-        <div id="photo3"></div>
+      <!-- 검색 결과 리스트 뷰 -->
+      <div id="list-view" class="list-view" style="display: none;">
+        <div class="detail-section-title">매물 목록</div>
+        <div id="list-content"></div>
       </div>
 
-      <div class="price" id="detailPrice">월세 2000 / 90</div>
-      <div class="meta" id="detailMeta">원룸 (분리형) · 33.05m² · 2층 / 4층 · 10만원</div>
-
-
-      <!-- 物件要素 아이콘 -->
-      <div class="detail-icons">
-        <div class="detail-icon">
-          🏠 <span id="iconRoomType">원룸(분리형)</span>
-        </div>
-        <div class="detail-icon">
-          📐 <span id="iconArea">33.05m²</span>
-        </div>
-        <div class="detail-icon">
-          🏢 <span id="iconFloor">2층/4층</span>
-        </div>
-        <div class="detail-icon">
-          💰 <span id="iconFee">10만원</span>
+      <!-- 상세 정보 뷰 -->
+      <div id="detail-view">
+        <!-- 타이틀 + 사진 -->
+        <div class="thumbs">
+          <div id="photo1"></div>
+          <div id="photo2"></div>
+          <div id="photo3"></div>
         </div>
 
-      </div>
-
-      <!-- 사용자 지정 옵션 -->
-
-      <div class="detail-section-title">키워드</div>
-      <div class="icon-list">
-        <div class="icon-pill" id="kw-walk">🚶 산책</div>
-        <div class="icon-pill" id="kw-running">🏃 러닝</div>
-        <div class="icon-pill" id="kw-pet">🐶 반려동물</div>
-        <div class="icon-pill" id="kw-gym">💪 헬스</div>
-        <div class="icon-pill" id="kw-concert">🎵 콘서트</div>
-        <div class="icon-pill" id="kw-cafe">☕ 카페</div>
-        <div class="icon-pill" id="kw-hiking">⛰ 등산</div>
-        <div class="icon-pill" id="kw-baseball">⚾ 야구</div>
-      </div>
+        <div class="price" id="detailPrice">월세 2000 / 90</div>
+        <div class="meta" id="detailMeta">원룸 (분리형) · 33.05m² · 2층 / 4층 · 10만원</div>
 
 
-      <!-- 상세정보 -->
-      <div class="detail-section-title">상세정보</div>
-      <div class="detail-table">
-        <div class="row"><span class="label">전용면적</span><span class="value" id="d-area">33.05m²</span></div>
-        <div class="row"><span class="label">방 수 / 욕실 수</span><span class="value" id="d-roomsBaths">1개 / 1개</span></div>
-        <div class="row"><span class="label">방향</span><span class="value" id="d-direction">남동</span></div>
-        <div class="row"><span class="label">난방종류</span><span class="value" id="d-heating">개별난방</span></div>
-        <div class="row"><span class="label">엘리베이터</span><span class="value" id="d-elevator">있음</span></div>
-        <div class="row"><span class="label">총 주차대수</span><span class="value" id="d-parking">5대</span></div>
-        <div class="row"><span class="label">입주가능일</span><span class="value" id="d-moveIn">2026.01.06</span></div>
-        <div class="row"><span class="label">건축용도</span><span class="value" id="d-buildingType">단독주택</span></div>
-      </div>
+        <!-- 물건요소 아이콘 -->
+        <div class="detail-icons">
+          <div class="detail-icon">
+            🏠 <span id="iconRoomType">원룸(분리형)</span>
+          </div>
+          <div class="detail-icon">
+            📐 <span id="iconArea">33.05m²</span>
+          </div>
+          <div class="detail-icon">
+            🏢 <span id="iconFloor">2층/4층</span>
+          </div>
+          <div class="detail-icon">
+            💰 <span id="iconFee">10만원</span>
+          </div>
+
+        </div>
+
+        <!-- 사용자 지정 옵션 -->
+
+        <div class="detail-section-title">키워드</div>
+        <div class="icon-list">
+          <div class="icon-pill" id="kw-walk">🚶 산책</div>
+          <div class="icon-pill" id="kw-running">🏃 러닝</div>
+          <div class="icon-pill" id="kw-pet">🐶 반려동물</div>
+          <div class="icon-pill" id="kw-gym">💪 헬스</div>
+          <div class="icon-pill" id="kw-concert">🎵 콘서트</div>
+          <div class="icon-pill" id="kw-cafe">☕ 카페</div>
+          <div class="icon-pill" id="kw-hiking">⛰ 등산</div>
+          <div class="icon-pill" id="kw-baseball">⚾ 야구</div>
+        </div>
 
 
-      <!-- 편의시설 -->
-      <div class="detail-section-title">편의시설</div>
-      <div class="facility-icons">
-        <div class="facility">
-          🚌 <span>버스</span>
+        <!-- 상세정보 -->
+        <div class="detail-section-title">상세정보</div>
+        <div class="detail-table">
+          <div class="row"><span class="label">전용면적</span><span class="value" id="d-area">33.05m²</span></div>
+          <div class="row"><span class="label">방 수 / 욕실 수</span><span class="value" id="d-roomsBaths">1개 / 1개</span>
+          </div>
+          <div class="row"><span class="label">방향</span><span class="value" id="d-direction">남동</span></div>
+          <div class="row"><span class="label">난방종류</span><span class="value" id="d-heating">개별난방</span></div>
+          <div class="row"><span class="label">엘리베이터</span><span class="value" id="d-elevator">있음</span></div>
+          <div class="row"><span class="label">총 주차대수</span><span class="value" id="d-parking">5대</span></div>
+          <div class="row"><span class="label">입주가능일</span><span class="value" id="d-moveIn">2026.01.06</span></div>
+          <div class="row"><span class="label">건축용도</span><span class="value" id="d-buildingType">단독주택</span></div>
         </div>
-        <div class="facility">
-          🚇 <span>지하철역</span>
-        </div>
-        <div class="facility">
-          🏪 <span>편의점</span>
-        </div>
-        <div class="facility">
-          🏦 <span>은행</span>
-        </div>
-      </div>
 
-      <!-- 주변 교통정보 -->
-      <div class="detail-section-title">주변 교통정보</div>
 
-      <div class="transport-block">
-        <div class="transport-title">지하철</div>
-        <div class="transport-item">
-          <span class="subway-line line2">2호선</span> 구의역 · <b>678m</b>
+        <!-- 편의시설 -->
+        <div class="detail-section-title">편의시설</div>
+        <div class="facility-icons">
+          <div class="facility">
+            🚌 <span>버스</span>
+          </div>
+          <div class="facility">
+            🚇 <span>지하철역</span>
+          </div>
+          <div class="facility">
+            🏪 <span>편의점</span>
+          </div>
+          <div class="facility">
+            🏦 <span>은행</span>
+          </div>
         </div>
-        <div class="transport-item">
-          <span class="subway-line line7">7호선</span> 어린이대공원역 · <b>780m</b>
-        </div>
-        <div class="transport-item">
-          <span class="subway-line line2">2호선</span> 강변역 · <b>990m</b>
-        </div>
-      </div>
 
-      <div class="transport-block">
-        <div class="transport-title">버스</div>
-        <div class="transport-item">
-          <span class="bus-line green">2222</span> 건대역방면 · <b>228m</b>
+        <!-- 주변 교통정보 -->
+        <div class="detail-section-title">주변 교통정보</div>
+
+        <div class="transport-block">
+          <div class="transport-title">지하철</div>
+          <div class="transport-item">
+            <span class="subway-line line2">2호선</span> 구의역 · <b>678m</b>
+          </div>
+          <div class="transport-item">
+            <span class="subway-line line7">7호선</span> 어린이대공원역 · <b>780m</b>
+          </div>
+          <div class="transport-item">
+            <span class="subway-line line2">2호선</span> 강변역 · <b>990m</b>
+          </div>
         </div>
-        <div class="transport-item">
-          <span class="bus-line red">102</span> 잠실방면 · <b>350m</b>
+
+        <div class="transport-block">
+          <div class="transport-title">버스</div>
+          <div class="transport-item">
+            <span class="bus-line green">2222</span> 건대역방면 · <b>228m</b>
+          </div>
+          <div class="transport-item">
+            <span class="bus-line red">102</span> 잠실방면 · <b>350m</b>
+          </div>
+          <div class="transport-item">
+            <span class="bus-line blue">441</span> 강남방면 · <b>535m</b>
+          </div>
         </div>
-        <div class="transport-item">
-          <span class="bus-line blue">441</span> 강남방면 · <b>535m</b>
-        </div>
+
+        <!-- 목록으로 돌아가기 버튼 (상세 뷰에서 리스트로 복귀용) -->
+        <button id="backToListBtn" class="button-main" style="margin-top: 20px; display: none;">목록으로 돌아가기</button>
       </div>
 
     </aside>

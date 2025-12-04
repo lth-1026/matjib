@@ -1,6 +1,7 @@
 * {
   box-sizing: border-box;
 }
+
 body {
   margin: 0;
   font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
@@ -45,10 +46,12 @@ header {
   gap: 6px;
   margin-bottom: 8px;
 }
+
 #rent-type {
   display: flex;
   justify-content: space-around;
 }
+
 .chip {
   width: 75px;
   padding: 6px 10px;
@@ -59,6 +62,7 @@ header {
   cursor: pointer;
   color: #4c2b08;
 }
+
 .chip.active {
   background: #875c44;
   color: white;
@@ -67,6 +71,7 @@ header {
 .range-group {
   margin-bottom: 12px;
 }
+
 .range-label {
   display: flex;
   justify-content: space-between;
@@ -91,13 +96,15 @@ input[type="range"] {
   left: 0;
   top: 18px;
   width: 100%;
-  pointer-events: none;      /* 重ねるため本体は無効 */
+  pointer-events: none;
+  /* 重ねるため本体は無効 */
   -webkit-appearance: none;
   background: none;
 }
 
 .range-slider input[type="range"]::-webkit-slider-thumb {
-  pointer-events: all;       /* つまみだけ操作可能に */
+  pointer-events: all;
+  /* つまみだけ操作可能に */
   width: 16px;
   height: 16px;
   background: #875c44;
@@ -155,6 +162,7 @@ input[type="range"] {
   gap: 4px;
   margin-bottom: 8px;
 }
+
 .thumbs div {
   background: #ddd;
   height: 70px;
@@ -166,6 +174,7 @@ input[type="range"] {
   font-weight: 700;
   margin-bottom: 4px;
 }
+
 .meta {
   font-size: 12px;
   color: #666;
@@ -178,6 +187,7 @@ input[type="range"] {
   gap: 6px;
   margin-bottom: 8px;
 }
+
 .icon-pill {
   display: inline-flex;
   align-items: center;
@@ -260,6 +270,7 @@ input[type="range"] {
   cursor: pointer;
   font-size: 14px;
 }
+
 /* ===== 관리비 포함 스위치 ===== */
 
 .switch-row {
@@ -298,7 +309,8 @@ input[type="range"] {
   left: 0;
   right: 0;
   bottom: 0;
-  background-color: #d6c5b8;   /* OFFの背景 */
+  background-color: #d6c5b8;
+  /* OFFの背景 */
   transition: .3s;
   border-radius: 24px;
 }
@@ -317,13 +329,15 @@ input[type="range"] {
 }
 
 /* ON状態 */
-.switch input:checked + .slider {
-  background-color: #875c44;   /* ONの背景 */
+.switch input:checked+.slider {
+  background-color: #875c44;
+  /* ONの背景 */
 }
 
-.switch input:checked + .slider:before {
+.switch input:checked+.slider:before {
   transform: translateX(22px);
 }
+
 /* 오른쪽 aside 전용 스타일 */
 .detail-icons {
   display: grid;
@@ -375,8 +389,13 @@ input[type="range"] {
   font-weight: 700;
 }
 
-.line2 { background: #00a65a; }
-.line7 { background: #747f00; }
+.line2 {
+  background: #00a65a;
+}
+
+.line7 {
+  background: #747f00;
+}
 
 /* bus line colors */
 .bus-line {
@@ -386,9 +405,18 @@ input[type="range"] {
   font-size: 11px;
   font-weight: 700;
 }
-.bus-line.blue { background: #1a73e8; }
-.bus-line.red { background: #c0392b; }
-.bus-line.green { background: #27ae60; }
+
+.bus-line.blue {
+  background: #1a73e8;
+}
+
+.bus-line.red {
+  background: #c0392b;
+}
+
+.bus-line.green {
+  background: #27ae60;
+}
 
 /* 제목 중앙 정렬 */
 .detail-section-title {
@@ -410,7 +438,8 @@ input[type="range"] {
 }
 
 .detail-table .label {
-  width: 150px;     /* ← 項目名の頭を揃える幅。必要なら調整してOK */
+  width: 150px;
+  /* ← 項目名の頭を揃える幅。必要なら調整してOK */
   font-weight: bold;
   color: #444;
 
@@ -420,4 +449,118 @@ input[type="range"] {
   flex: 1;
   font-weight: 700;
   color: #aaaab0;
+}
+
+/* 리스트 뷰 스타일 */
+.list-view {
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+}
+
+#list-content {
+  flex: 1;
+  overflow-y: auto;
+}
+
+.list-section {
+  margin-bottom: 20px;
+}
+
+.list-section-header {
+  font-size: 16px;
+  font-weight: 800;
+  color: #4a2b16;
+  border-bottom: 2px solid #e0c7aa;
+  padding: 8px 4px;
+  margin-bottom: 8px;
+  background-color: #fcfcfc;
+  position: sticky;
+  top: 0;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.ai-reason-btn {
+  font-size: 11px;
+  padding: 4px 8px;
+  background-color: #875c44;
+  color: white;
+  border: none;
+  border-radius: 12px;
+  cursor: pointer;
+  transition: background-color 0.2s;
+}
+
+.ai-reason-btn:hover {
+  background-color: #6d4a36;
+}
+
+.list-item {
+  padding: 12px 8px;
+  border-bottom: 1px solid #eee;
+  cursor: pointer;
+  transition: background-color 0.2s;
+}
+
+.list-item:hover {
+  background-color: #f9f5f0;
+}
+
+.list-item-title {
+  font-size: 15px;
+  font-weight: 700;
+  margin-bottom: 4px;
+  color: #333;
+}
+
+.list-item-price {
+  font-size: 14px;
+  font-weight: 600;
+  color: #875c44;
+  margin-bottom: 4px;
+}
+
+.list-item-info {
+  font-size: 12px;
+  color: #888;
+}
+
+/* 로딩 오버레이 */
+/* 버튼 로딩 스피너 */
+.button-spinner {
+  display: inline-block;
+  width: 16px;
+  height: 16px;
+  border: 2px solid rgba(255, 255, 255, 0.3);
+  border-radius: 50%;
+  border-top-color: #fff;
+  animation: spin 1s ease-in-out infinite;
+  margin-right: 8px;
+  vertical-align: middle;
+}
+
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.button-main:disabled {
+  background-color: #a89b91;
+  cursor: not-allowed;
+  opacity: 0.8;
+}
+
+/* 추천 이유 박스 */
+.recommendation-reason {
+  background-color: #fff8e1;
+  border: 1px solid #ffe082;
+  border-radius: 8px;
+  padding: 10px;
+  margin: 10px;
+  font-size: 0.9rem;
+  color: #5d4037;
+  line-height: 1.4;
 }
