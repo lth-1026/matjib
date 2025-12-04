@@ -1,4 +1,3 @@
-const OPENAI_API_KEY = ""; // 이곳에 OpenAI API 키를 입력하세요
 let map;
 let allHouses = []; // Store all house data
 let markers = []; // Store current markers
@@ -7,10 +6,7 @@ let markersById = {};
 
 // ========== AI 추천 알고리즘 ==========
 async function getAIRecommendation(filteredList) {
-  if (!OPENAI_API_KEY) {
-    alert("스크립트 상단에 OpenAI API 키를 설정해주세요.");
-    return;
-  }
+
 
   if (filteredList.length === 0) {
     // alert("추천할 매물이 없습니다.");
@@ -69,46 +65,17 @@ async function getAIRecommendation(filteredList) {
       commuteLocations: commuteLocations.map(l => l.name) // 좌표 대신 이름만 보내도 됨 (거리는 이미 계산해서 보냄)
     };
 
-    // 3. 프롬프트 구성
-    const prompt = `
-      Role: Real estate recommendation expert.
-      Task: Analyze the Candidate Houses and recommend TOP 2-3 NEIGHBORHOODS (e.g. specific Dong or Gu name present in addresses) for the user.
-      
-      User Requirements:
-      ${JSON.stringify(userReq)}
-      
-      Candidate Houses (Pre-calculated avgCommuteDist included):
-      ${JSON.stringify(topCandidates)}
-      
-      Rules:
-      1. Group houses by neighborhood (based on address).
-      2. Evaluate each neighborhood based on commute distance and lifestyle match.
-      3. Output Format: JSON only. No markdown.
-      {
-          "recommendations": [
-              {
-                  "keyword": "String (e.g. '자양동')",
-                  "reason": "String (Korean explanation)"
-              },
-              {
-                  "keyword": "String (e.g. '화양동')",
-                  "reason": "String (Korean explanation)"
-              }
-          ]
-      }
-    `;
+    // 3. Cloudflare Worker 호출
+    const WORKER_URL = "https://matjib-ai.th20001026.workers.dev";
 
-    // 4. API 호출
-    const res = await fetch("https://api.openai.com/v1/chat/completions", {
+    const res = await fetch(WORKER_URL, {
       method: "POST",
       headers: {
-        "Content-Type": "application/json",
-        "Authorization": `Bearer ${OPENAI_API_KEY}`
+        "Content-Type": "application/json"
       },
       body: JSON.stringify({
-        model: "gpt-4o",
-        messages: [{ role: "user", content: prompt }],
-        response_format: { type: "json_object" }
+        userReq: userReq,
+        topCandidates: topCandidates
       })
     });
 
