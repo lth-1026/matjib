@@ -122,18 +122,24 @@ document.querySelector("#userForm").addEventListener("submit", (e) => {
 
   //라이프스타일 저장
   const chips = document.querySelectorAll("#lifestyle .chip");
-  document.getElementById("walkInput").value    = chips[0].classList.contains("active") ? "산책" : 0;
+  document.getElementById("walkInput").value = chips[0].classList.contains("active") ? "산책" : 0;
   document.getElementById("runningInput").value = chips[1].classList.contains("active") ? "러닝" : 0;
-  document.getElementById("petInput").value     = chips[2].classList.contains("active") ? "반려동물" : 0;
-  document.getElementById("gymInput").value     = chips[3].classList.contains("active") ? "헬스" : 0;
+  document.getElementById("petInput").value = chips[2].classList.contains("active") ? "반려동물" : 0;
+  document.getElementById("gymInput").value = chips[3].classList.contains("active") ? "헬스" : 0;
   document.getElementById("concertInput").value = chips[4].classList.contains("active") ? "콘서트" : 0;
-  document.getElementById("cafeInput").value    = chips[5].classList.contains("active") ? "카페" : 0;
-  document.getElementById("hikingInput").value  = chips[6].classList.contains("active") ? "등산" : 0;
-  document.getElementById("baseballInput").value= chips[7].classList.contains("active") ? "야구" : 0;
+  document.getElementById("cafeInput").value = chips[5].classList.contains("active") ? "카페" : 0;
+  document.getElementById("hikingInput").value = chips[6].classList.contains("active") ? "등산" : 0;
+  document.getElementById("baseballInput").value = chips[7].classList.contains("active") ? "야구" : 0;
 
 
   const formData = new FormData(e.target);
 
+  // Static version: search not implemented on server side.
+  // You could implement client-side filtering here using 'allHouses' if needed.
+  console.log("Search form submitted. Data:", Object.fromEntries(formData.entries()));
+  alert("정적 페이지 데모입니다. 검색 기능은 현재 구현되지 않았습니다.");
+
+  /*
   fetch("matjib.php", {
     method: "POST",
     body: formData
@@ -143,7 +149,8 @@ document.querySelector("#userForm").addEventListener("submit", (e) => {
     updateMap(data);
     updateDetail(data);
   });
-}  
+  */
+}
 );
 
 
@@ -172,12 +179,12 @@ function addCommuteItem() {
   nameSpan.className = "commute-item-name";
   nameSpan.textContent = text;
 
-// 아래 네줄은 php로 넘어갈 유저 요구사항 배열
+  // 아래 네줄은 php로 넘어갈 유저 요구사항 배열
   const hidden = document.createElement("input");
   hidden.type = "hidden";
   hidden.name = "commuteList[]";   // 중요!
   hidden.value = text;
-// 
+  // 
 
   const removeBtn = document.createElement("button");
   removeBtn.className = "commute-remove";
@@ -206,9 +213,10 @@ commuteInput.addEventListener("keydown", (e) => {
 
 
 let map;
+let allHouses = []; // Store all house data
 
 document.addEventListener("DOMContentLoaded", () => {
-  
+
   // SDK 로드가 끝난 뒤에 실행되도록
   kakao.maps.load(() => {
     const container = document.getElementById("map");
@@ -217,22 +225,28 @@ document.addEventListener("DOMContentLoaded", () => {
     map = new kakao.maps.Map(container, {
       center: new kakao.maps.LatLng(37.5, 127.0),
       level: 4,
-      
+
     });
 
-    fetch("house.php")
+    fetch("houses.json")
       .then(res => res.json())
       .then(list => {
+        allHouses = list; // Save to global variable
 
-        
-        // 초기 좌표로 건대 매물
-        const first = list[320];
-        const firstPos = new kakao.maps.LatLng(parseFloat(first.lat), parseFloat(first.lng));
-        map.setCenter(firstPos);
-        map.setLevel(4); 
+        // 초기 좌표로 건대 매물 (광진구)
+        const firstItem = list.find(item => item.house.address.includes("광진구")) || list[0];
+        if (firstItem) {
+          const firstPos = new kakao.maps.LatLng(parseFloat(firstItem.house.lat), parseFloat(firstItem.house.lng));
+          map.setCenter(firstPos);
+          map.setLevel(4);
+
+          // 초기 상세정보도 같이 로드
+          loadDetail(firstItem.house.id);
+        }
 
         // 마커들 찍기 
-        list.forEach(h => {
+        list.forEach(item => {
+          const h = item.house;
           const pos = new kakao.maps.LatLng(parseFloat(h.lat), parseFloat(h.lng));
           const marker = new kakao.maps.Marker({ position: pos, map });
 
@@ -241,23 +255,23 @@ document.addEventListener("DOMContentLoaded", () => {
           });
         });
 
-        });
-
       })
       .catch(console.error);
+
+  });
 
 });
 
 
 
 function loadDetail(id) {
-  fetch(`house_detail.php?id=${id}`)
-    .then(res => res.json())
-    .then(data => {
-      if (data.error) return console.error(data.error);
-      renderDetail(data.house, data.lifestyle);
-    })
-    .catch(console.error);
+  // Find data from global array instead of fetching
+  const item = allHouses.find(i => i.house.id == id);
+  if (item) {
+    renderDetail(item.house, item.lifestyle);
+  } else {
+    console.error("House not found:", id);
+  }
 }
 
 function renderDetail(h, life) {
@@ -294,13 +308,13 @@ function renderDetail(h, life) {
 }
 
 function renderKeywords(life) {
-  toggle("kw-walk",     life && +life.walk);
-  toggle("kw-running",  life && +life.running);
-  toggle("kw-pet",      life && +life.pet);
-  toggle("kw-gym",      life && +life.gym);
-  toggle("kw-concert",  life && +life.concert);
-  toggle("kw-cafe",     life && +life.cafe);
-  toggle("kw-hiking",   life && +life.hiking);
+  toggle("kw-walk", life && +life.walk);
+  toggle("kw-running", life && +life.running);
+  toggle("kw-pet", life && +life.pet);
+  toggle("kw-gym", life && +life.gym);
+  toggle("kw-concert", life && +life.concert);
+  toggle("kw-cafe", life && +life.cafe);
+  toggle("kw-hiking", life && +life.hiking);
   toggle("kw-baseball", life && +life.baseball);
 }
 
@@ -318,4 +332,3 @@ function setText(id, text) {
 function num(v) { return (+v || 0).toLocaleString("ko-KR"); }
 
 function dateDot(s) { return String(s || "").replaceAll("-", "."); }
-
