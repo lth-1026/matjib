@@ -383,6 +383,10 @@ function updateList(list) {
 
       el.addEventListener("click", () => {
         loadDetail(h.id);
+
+        // 지도 이동
+        const moveLatLon = new kakao.maps.LatLng(parseFloat(h.lat), parseFloat(h.lng));
+        map.setCenter(moveLatLon);
       });
 
       section.appendChild(el);
