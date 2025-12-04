@@ -16,7 +16,7 @@ export default {
     }
 
     try {
-      const { userReq, topCandidates } = await request.json();
+      const { userReq, topCandidates, regionProfiles = {} } = await request.json();
 
       if (!userReq || !topCandidates) {
         return new Response("Missing data", { status: 400 });
@@ -29,13 +29,21 @@ export default {
         User Requirements:
         ${JSON.stringify(userReq)}
         
-        Candidate Houses (Pre-calculated avgCommuteDist included):
+        Candidate Houses (Pre-calculated avgCommuteDist included, plus region_profile describing the neighborhood's strengths for walk/running/pet/gym/concert/cafe/hiking/baseball):
         ${JSON.stringify(topCandidates)}
-        
+
+        Region Profiles (unique per neighborhood):
+        ${JSON.stringify(regionProfiles)}
+
+        Active Lifestyle Filters (must be referenced in explanations; each object contains key+label):
+        ${JSON.stringify(userReq.activeLifestyle || [])}
+
         Rules:
         1. Group houses by neighborhood (based on address).
         2. Evaluate each neighborhood based on commute distance and lifestyle match.
-        3. Output Format: JSON only. No markdown.
+        3. Leverage region_profile notes alongside each house's lifestyle data to judge how well the area's character fits the user's needs.
+        4. For every recommendation reason, explicitly mention which selected lifestyle labels (e.g. '산책', '카페') are satisfied and cite concrete evidence (region_profile or house lifestyle metrics). If no lifestyle filter is active, explain the neighborhood's general strengths.
+        5. Output Format: JSON only. No markdown.
         {
             "recommendations": [
                 {

@@ -3,10 +3,32 @@ let allHouses = []; // Store all house data
 let markers = []; // Store current markers
 let selectedMarker = null;
 let markersById = {};
-let regionMap = {}; // regionId -> 행정구역명
+let regionMap = {}; // regionId -> 지역 정보
+const LIFESTYLE_META = [
+  { key: "walk", label: "산책" },
+  { key: "running", label: "러닝" },
+  { key: "pet", label: "반려동물" },
+  { key: "gym", label: "헬스" },
+  { key: "concert", label: "콘서트" },
+  { key: "cafe", label: "카페" },
+  { key: "hiking", label: "등산" },
+  { key: "baseball", label: "야구" }
+];
+
+function getRegionInfoById(id) {
+  if (id === undefined || id === null) return null;
+  const key = String(id);
+  return regionMap[key] || null;
+}
 
 function getRegionNameById(id) {
-  return regionMap[id] || "";
+  const info = getRegionInfoById(id);
+  return info ? info.label : "";
+}
+
+function getRegionProfileById(id) {
+  const info = getRegionInfoById(id);
+  return info ? info.lifestyle : null;
 }
 
 function buildFullAddress(house) {
@@ -18,7 +40,8 @@ function buildFullAddress(house) {
 
 function enrichHouse(item) {
   const regionId = item.house.address;
-  const regionName = getRegionNameById(regionId);
+  const regionInfo = getRegionInfoById(regionId) || {};
+  const regionName = regionInfo.label || "";
   const detail = item.house.address_detail || "";
   const fullAddress = detail ? `${regionName} ${detail}` : regionName;
   return {
@@ -27,6 +50,8 @@ function enrichHouse(item) {
       ...item.house,
       region_id: regionId,
       region_name: regionName,
+      region_info: regionInfo,
+      region_profile: regionInfo.lifestyle || null,
       full_address: fullAddress
     }
   };
@@ -40,9 +65,17 @@ async function loadRegions() {
   }
   const list = await res.json();
   regionMap = list.reduce((acc, region) => {
-    acc[region.id] = region.label;
+    acc[String(region.id)] = region;
     return acc;
   }, {});
+}
+
+function getLifestyleSelections() {
+  const chips = document.querySelectorAll("#lifestyle .chip");
+  return LIFESTYLE_META.map((meta, idx) => ({
+    ...meta,
+    active: chips[idx] ? chips[idx].classList.contains("active") : false
+  }));
 }
 
 // ========== AI 추천 알고리즘 ==========
@@ -68,6 +101,9 @@ async function getAIRecommendation(filteredList) {
     const candidates = filteredList.map(item => {
       const h = item.house;
       const fullAddress = buildFullAddress(h);
+      const regionId = h.region_id ?? h.address;
+      const regionName = h.region_name || getRegionNameById(regionId);
+      const regionProfile = h.region_profile || getRegionProfileById(regionId);
       // 통근 거리 계산 (평균 거리)
       let totalDist = 0;
       if (commuteLocations.length > 0) {
@@ -82,7 +118,9 @@ async function getAIRecommendation(filteredList) {
       return {
         id: h.id,
         address: fullAddress,
-        address_id: h.region_id ?? h.address,
+        address_id: regionId,
+        region_label: regionName,
+        region_profile: regionProfile,
         deposit: h.deposit,
         rent: h.rent,
         maintenance_fee: h.maintenance_fee,
@@ -96,6 +134,14 @@ async function getAIRecommendation(filteredList) {
       candidates.sort((a, b) => a.avgCommuteDist - b.avgCommuteDist);
     }
     const topCandidates = candidates.slice(0, 30);
+    const regionProfiles = topCandidates.reduce((acc, item) => {
+      if (item.region_label && item.region_profile) {
+        acc[item.region_label] = item.region_profile;
+      }
+      return acc;
+    }, {});
+    const lifestyleSelections = getLifestyleSelections();
+    const activeLifestyle = lifestyleSelections.filter(item => item.active);
 
     // 2. 사용자 요구사항 구성
     const rentTypeChip = document.querySelector("#rent-type .chip.active");
@@ -105,7 +151,9 @@ async function getAIRecommendation(filteredList) {
       depositMax: document.getElementById("depositMax").value,
       rentMin: document.getElementById("rentMin").value,
       rentMax: document.getElementById("rentMax").value,
-      commuteLocations: commuteLocations.map(l => l.name) // 좌표 대신 이름만 보내도 됨 (거리는 이미 계산해서 보냄)
+      commuteLocations: commuteLocations.map(l => l.name), // 좌표 대신 이름만 보내도 됨 (거리는 이미 계산해서 보냄)
+      lifestyleSelections: lifestyleSelections,
+      activeLifestyle: activeLifestyle
     };
 
     // 3. Cloudflare Worker 호출
@@ -118,7 +166,8 @@ async function getAIRecommendation(filteredList) {
       },
       body: JSON.stringify({
         userReq: userReq,
-        topCandidates: topCandidates
+        topCandidates: topCandidates,
+        regionProfiles: regionProfiles
       })
     });
 
@@ -318,17 +367,11 @@ if (userForm) {
     const areaText = areaChip ? areaChip.textContent : "전체";
 
     // 라이프스타일 활성화 여부 확인
-    const lifestyleChips = document.querySelectorAll("#lifestyle .chip");
-    const lifestyleConditions = [
-      { key: 'walk', active: lifestyleChips[0].classList.contains("active") },
-      { key: 'running', active: lifestyleChips[1].classList.contains("active") },
-      { key: 'pet', active: lifestyleChips[2].classList.contains("active") },
-      { key: 'gym', active: lifestyleChips[3].classList.contains("active") },
-      { key: 'concert', active: lifestyleChips[4].classList.contains("active") },
-      { key: 'cafe', active: lifestyleChips[5].classList.contains("active") },
-      { key: 'hiking', active: lifestyleChips[6].classList.contains("active") },
-      { key: 'baseball', active: lifestyleChips[7].classList.contains("active") },
-    ];
+    const lifestyleSelections = getLifestyleSelections();
+    const lifestyleConditions = lifestyleSelections.map(sel => ({
+      key: sel.key,
+      active: sel.active
+    }));
 
     // 2. 필터링 로직
     const filtered = allHouses.filter(item => {
