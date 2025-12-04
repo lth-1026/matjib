@@ -2,6 +2,8 @@
 let map;
 let allHouses = []; // Store all house data
 let markers = []; // Store current markers
+let selectedMarker = null;
+let markersById = {};
 
 // ========== 보증금 슬라이더 입력처리 ==========
 const minInput = document.getElementById("depositMin");
@@ -45,9 +47,11 @@ function updateTrack() {
   `;
 }
 
-minInput.addEventListener("input", updateDepositRange);
-maxInput.addEventListener("input", updateDepositRange);
-updateDepositRange(); // 初期表示
+if (minInput && maxInput) {
+  minInput.addEventListener("input", updateDepositRange);
+  maxInput.addEventListener("input", updateDepositRange);
+  updateDepositRange(); // 初期表示
+}
 
 // ==========월세 슬라이더 입력 처리==========
 const r_minInput = document.getElementById("rentMin");
@@ -91,9 +95,11 @@ function updateRentTrack() {
   `;
 }
 
-r_minInput.addEventListener("input", updateRentRange);
-r_maxInput.addEventListener("input", updateRentRange);
-updateRentRange(); // 初期表示
+if (r_minInput && r_maxInput) {
+  r_minInput.addEventListener("input", updateRentRange);
+  r_maxInput.addEventListener("input", updateRentRange);
+  updateRentRange(); // 初期表示
+}
 
 //=================선택 버튼 처리=======================
 document.querySelectorAll(".chip-row").forEach((row) => {
@@ -114,93 +120,96 @@ document.querySelectorAll(".chip-row").forEach((row) => {
 });
 
 
-document.querySelector("#userForm").addEventListener("submit", (e) => {
-  e.preventDefault();
+const userForm = document.querySelector("#userForm");
+if (userForm) {
+  userForm.addEventListener("submit", (e) => {
+    e.preventDefault();
 
-  // 1. 폼 데이터 수집
-  const rentTypeChip = document.querySelector("#rent-type .chip.active");
-  const rentType = rentTypeChip ? rentTypeChip.textContent : "전체";
+    // 1. 폼 데이터 수집
+    const rentTypeChip = document.querySelector("#rent-type .chip.active");
+    const rentType = rentTypeChip ? rentTypeChip.textContent : "전체";
 
-  const depositMin = parseInt(document.getElementById("depositMin").value) || 0;
-  const depositMax = parseInt(document.getElementById("depositMax").value) || 0;
+    const depositMin = parseInt(document.getElementById("depositMin").value) || 0;
+    const depositMax = parseInt(document.getElementById("depositMax").value) || 0;
 
-  const rentMin = parseInt(document.getElementById("rentMin").value) || 0;
-  const rentMax = parseInt(document.getElementById("rentMax").value) || 0;
+    const rentMin = parseInt(document.getElementById("rentMin").value) || 0;
+    const rentMax = parseInt(document.getElementById("rentMax").value) || 0;
 
-  const includeFee = document.getElementById("includeFee").checked;
+    const includeFee = document.getElementById("includeFee").checked;
 
-  const areaChip = document.querySelector("#area-range .chip.active");
-  const areaText = areaChip ? areaChip.textContent : "전체";
+    const areaChip = document.querySelector("#area-range .chip.active");
+    const areaText = areaChip ? areaChip.textContent : "전체";
 
-  // 라이프스타일 활성화 여부 확인
-  const lifestyleChips = document.querySelectorAll("#lifestyle .chip");
-  const lifestyleConditions = [
-    { key: 'walk', active: lifestyleChips[0].classList.contains("active") },
-    { key: 'running', active: lifestyleChips[1].classList.contains("active") },
-    { key: 'pet', active: lifestyleChips[2].classList.contains("active") },
-    { key: 'gym', active: lifestyleChips[3].classList.contains("active") },
-    { key: 'concert', active: lifestyleChips[4].classList.contains("active") },
-    { key: 'cafe', active: lifestyleChips[5].classList.contains("active") },
-    { key: 'hiking', active: lifestyleChips[6].classList.contains("active") },
-    { key: 'baseball', active: lifestyleChips[7].classList.contains("active") },
-  ];
+    // 라이프스타일 활성화 여부 확인
+    const lifestyleChips = document.querySelectorAll("#lifestyle .chip");
+    const lifestyleConditions = [
+      { key: 'walk', active: lifestyleChips[0].classList.contains("active") },
+      { key: 'running', active: lifestyleChips[1].classList.contains("active") },
+      { key: 'pet', active: lifestyleChips[2].classList.contains("active") },
+      { key: 'gym', active: lifestyleChips[3].classList.contains("active") },
+      { key: 'concert', active: lifestyleChips[4].classList.contains("active") },
+      { key: 'cafe', active: lifestyleChips[5].classList.contains("active") },
+      { key: 'hiking', active: lifestyleChips[6].classList.contains("active") },
+      { key: 'baseball', active: lifestyleChips[7].classList.contains("active") },
+    ];
 
-  // 2. 필터링 로직
-  const filtered = allHouses.filter(item => {
-    const h = item.house;
-    const l = item.lifestyle || {};
+    // 2. 필터링 로직
+    const filtered = allHouses.filter(item => {
+      const h = item.house;
+      const l = item.lifestyle || {};
 
-    // (1) 거래 유형
-    if (rentType !== "전체" && h.rent_type !== rentType) return false;
+      // (1) 거래 유형
+      if (rentType !== "전체" && h.rent_type !== rentType) return false;
 
-    // (2) 보증금
-    if (h.deposit < depositMin || h.deposit > depositMax) return false;
+      // (2) 보증금
+      if (h.deposit < depositMin || h.deposit > depositMax) return false;
 
-    // (3) 월세 (+관리비)
-    let checkRent = h.rent;
-    if (includeFee) checkRent += h.maintenance_fee;
-    // 전세인 경우 월세가 0이므로 범위에 포함되는지 확인 (보통 0~0 범위가 아니면 제외될 수 있음)
-    // 하지만 사용자 경험상 전세를 선택했을 때 월세 필터가 어떻게 동작할지 고려해야 함.
-    // 여기서는 단순하게 계산된 월세(전세는 0)가 범위 내에 있는지 확인.
-    if (checkRent < rentMin || checkRent > rentMax) return false;
+      // (3) 월세 (+관리비)
+      let checkRent = h.rent;
+      if (includeFee) checkRent += h.maintenance_fee;
+      // 전세인 경우 월세가 0이므로 범위에 포함되는지 확인 (보통 0~0 범위가 아니면 제외될 수 있음)
+      // 하지만 사용자 경험상 전세를 선택했을 때 월세 필터가 어떻게 동작할지 고려해야 함.
+      // 여기서는 단순하게 계산된 월세(전세는 0)가 범위 내에 있는지 확인.
+      if (checkRent < rentMin || checkRent > rentMax) return false;
 
-    // (4) 면적 (평수 변환)
-    const pyeong = h.area_m2 / 3.3058;
-    if (areaText !== "전체") {
-      if (areaText === "10평 이하" && pyeong > 10) return false;
-      if (areaText === "10평대" && (pyeong < 10 || pyeong >= 20)) return false;
-      if (areaText === "20평대" && (pyeong < 20 || pyeong >= 30)) return false;
-      if (areaText === "30평대" && (pyeong < 30 || pyeong >= 40)) return false;
-      if (areaText === "40평대" && (pyeong < 40 || pyeong >= 50)) return false;
-      if (areaText === "50평대" && (pyeong < 50 || pyeong >= 60)) return false;
-      if (areaText === "60평 이상" && pyeong < 60) return false;
-    }
-
-    // (5) 라이프스타일 (AND 조건: 선택된 모든 조건 만족해야 함)
-    for (const cond of lifestyleConditions) {
-      if (cond.active) {
-        // 해당 라이프스타일 데이터가 1이어야 함. 데이터가 없거나 0이면 탈락
-        if (!l[cond.key] || l[cond.key] == 0) return false;
+      // (4) 면적 (평수 변환)
+      const pyeong = h.area_m2 / 3.3058;
+      if (areaText !== "전체") {
+        if (areaText === "10평 이하" && pyeong > 10) return false;
+        if (areaText === "10평대" && (pyeong < 10 || pyeong >= 20)) return false;
+        if (areaText === "20평대" && (pyeong < 20 || pyeong >= 30)) return false;
+        if (areaText === "30평대" && (pyeong < 30 || pyeong >= 40)) return false;
+        if (areaText === "40평대" && (pyeong < 40 || pyeong >= 50)) return false;
+        if (areaText === "50평대" && (pyeong < 50 || pyeong >= 60)) return false;
+        if (areaText === "60평 이상" && pyeong < 60) return false;
       }
+
+      // (5) 라이프스타일 (AND 조건: 선택된 모든 조건 만족해야 함)
+      for (const cond of lifestyleConditions) {
+        if (cond.active) {
+          // 해당 라이프스타일 데이터가 1이어야 함. 데이터가 없거나 0이면 탈락
+          if (!l[cond.key] || l[cond.key] == 0) return false;
+        }
+      }
+
+      return true;
+    });
+
+    // 3. 지도 업데이트
+    console.log(`검색 결과: ${filtered.length}건`);
+    if (filtered.length === 0) {
+      alert("조건에 맞는 매물이 없습니다.");
+    } else {
+      updateMap(filtered);
+      updateList(filtered); // 리스트 업데이트 및 뷰 전환
+
+      // 첫 번째 매물로 중심 이동 (상세정보는 로드하지 않음 -> 리스트 뷰 유지)
+      const first = filtered[0].house;
+      const moveLatLon = new kakao.maps.LatLng(parseFloat(first.lat), parseFloat(first.lng));
+      map.setCenter(moveLatLon);
     }
-
-    return true;
   });
-
-  // 3. 지도 업데이트
-  console.log(`검색 결과: ${filtered.length}건`);
-  if (filtered.length === 0) {
-    alert("조건에 맞는 매물이 없습니다.");
-  } else {
-    updateMap(filtered);
-    updateList(filtered); // 리스트 업데이트 및 뷰 전환
-
-    // 첫 번째 매물로 중심 이동 및 상세정보 표시
-    const first = filtered[0].house;
-    const moveLatLon = new kakao.maps.LatLng(parseFloat(first.lat), parseFloat(first.lng));
-    map.setCenter(moveLatLon);
-  }
-});
+}
 
 
 // ========== 통근 위치 추가 ==========
@@ -250,15 +259,19 @@ function addCommuteItem() {
   commuteInput.value = "";
 }
 
-commuteAddBtn.addEventListener("click", addCommuteItem);
+if (commuteAddBtn) {
+  commuteAddBtn.addEventListener("click", addCommuteItem);
+}
 
 // Enter키 눌러도 저장
-commuteInput.addEventListener("keydown", (e) => {
-  if (e.key === "Enter") {
-    e.preventDefault();
-    addCommuteItem();
-  }
-});
+if (commuteInput) {
+  commuteInput.addEventListener("keydown", (e) => {
+    if (e.key === "Enter") {
+      e.preventDefault();
+      addCommuteItem();
+    }
+  });
+}
 
 
 document.addEventListener("DOMContentLoaded", () => {
@@ -302,10 +315,13 @@ document.addEventListener("DOMContentLoaded", () => {
   });
 
   // 목록으로 돌아가기 버튼 이벤트
-  document.getElementById("backToListBtn").addEventListener("click", () => {
-    document.getElementById("detail-view").style.display = "none";
-    document.getElementById("list-view").style.display = "flex";
-  });
+  const backBtn = document.getElementById("backToListBtn");
+  if (backBtn) {
+    backBtn.addEventListener("click", () => {
+      document.getElementById("detail-view").style.display = "none";
+      document.getElementById("list-view").style.display = "flex";
+    });
+  }
 
 });
 
@@ -313,14 +329,28 @@ function updateMap(list) {
   // 1. 기존 마커 제거
   markers.forEach(m => m.setMap(null));
   markers = [];
+  markersById = {};
+  selectedMarker = null;
+
+  // 마커 이미지 설정 (모든 검색 결과에 적용)
+  var imageSrc = 'mark3.png',
+    imageSize = new kakao.maps.Size(36, 36),
+    imageOption = { offset: new kakao.maps.Point(17, 36) };
+  var markerImage = new kakao.maps.MarkerImage(imageSrc, imageSize, imageOption);
 
   // 2. 새 마커 생성
   list.forEach(item => {
     const h = item.house;
     const pos = new kakao.maps.LatLng(parseFloat(h.lat), parseFloat(h.lng));
 
-    // 마커 이미지 등을 커스텀하려면 여기서 설정
-    const marker = new kakao.maps.Marker({ position: pos, map: map });
+    // 마커 이미지 적용
+    const marker = new kakao.maps.Marker({
+      position: pos,
+      map: map,
+      image: markerImage
+    });
+
+    markersById[h.id] = marker;
 
     kakao.maps.event.addListener(marker, "click", () => {
       loadDetail(h.id);
@@ -332,6 +362,7 @@ function updateMap(list) {
 
 function updateList(list) {
   const listContent = document.getElementById("list-content");
+  if (!listContent) return;
   listContent.innerHTML = ""; // 초기화
 
   // 지역별 그룹핑
@@ -383,10 +414,6 @@ function updateList(list) {
 
       el.addEventListener("click", () => {
         loadDetail(h.id);
-
-        // 지도 이동
-        const moveLatLon = new kakao.maps.LatLng(parseFloat(h.lat), parseFloat(h.lng));
-        map.setCenter(moveLatLon);
       });
 
       section.appendChild(el);
@@ -396,8 +423,10 @@ function updateList(list) {
   }
 
   // 뷰 전환: 리스트 보이기, 상세 숨기기
-  document.getElementById("list-view").style.display = "flex";
-  document.getElementById("detail-view").style.display = "none";
+  const listView = document.getElementById("list-view");
+  const detailView = document.getElementById("detail-view");
+  if (listView) listView.style.display = "flex";
+  if (detailView) detailView.style.display = "none";
 }
 
 function loadDetail(id) {
@@ -407,11 +436,25 @@ function loadDetail(id) {
     renderDetail(item.house, item.lifestyle);
 
     // 상세 뷰 보이기, 리스트 숨기기
-    document.getElementById("detail-view").style.display = "block";
-    document.getElementById("list-view").style.display = "none";
+    const listView = document.getElementById("list-view");
+    const detailView = document.getElementById("detail-view");
+    if (detailView) detailView.style.display = "block";
+    if (listView) listView.style.display = "none";
 
-    // 목록으로 돌아가기 버튼 보이기 (검색 결과가 있을 때만 의미가 있지만, 일단 항상 표시)
-    document.getElementById("backToListBtn").style.display = "block";
+    // 목록으로 돌아가기 버튼 보이기
+    const backBtn = document.getElementById("backToListBtn");
+    if (backBtn) backBtn.style.display = "block";
+
+    // === 지도 이동 ===
+    const marker = markersById[id];
+    if (marker) {
+      // 지도 중심 이동
+      map.setCenter(marker.getPosition());
+
+      // 선택된 마커 z-index 조정 등으로 강조 가능 (옵션)
+      // marker.setZIndex(10); 
+    }
+
   } else {
     console.error("House not found:", id);
   }
