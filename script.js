@@ -217,6 +217,7 @@ if (userForm) {
 const commuteInput = document.getElementById("commuteInput");
 const commuteAddBtn = document.getElementById("commuteAddBtn");
 const commuteList = document.getElementById("commuteList");
+let commuteLocations = []; // 좌표 저장용 배열
 
 function addCommuteItem() {
   const text = commuteInput.value.trim();
@@ -230,33 +231,61 @@ function addCommuteItem() {
     return;
   }
 
-  const item = document.createElement("div");
-  item.className = "commute-item";
+  // 장소 검색 객체 생성 (키워드 검색용)
+  const ps = new kakao.maps.services.Places();
 
-  const nameSpan = document.createElement("span");
-  nameSpan.className = "commute-item-name";
-  nameSpan.textContent = text;
+  // 키워드로 장소를 검색합니다
+  ps.keywordSearch(text, function (result, status) {
+    // 정상적으로 검색이 완료됐으면 
+    if (status === kakao.maps.services.Status.OK) {
+      const coords = {
+        name: text,
+        x: result[0].x, // 경도 (lng)
+        y: result[0].y  // 위도 (lat)
+      };
 
-  // 아래 네줄은 php로 넘어갈 유저 요구사항 배열
-  const hidden = document.createElement("input");
-  hidden.type = "hidden";
-  hidden.name = "commuteList[]";   // 중요!
-  hidden.value = text;
-  // 
+      // 좌표 배열에 저장
+      commuteLocations.push(coords);
+      console.log("통근 위치 추가됨:", coords);
+      console.log("현재 통근 위치 목록:", commuteLocations);
 
-  const removeBtn = document.createElement("button");
-  removeBtn.className = "commute-remove";
-  removeBtn.textContent = "x";
-  removeBtn.addEventListener("click", () => {
-    commuteList.removeChild(item);
+      // UI 추가
+      const item = document.createElement("div");
+      item.className = "commute-item";
+
+      const nameSpan = document.createElement("span");
+      nameSpan.className = "commute-item-name";
+      nameSpan.textContent = text; // 입력한 텍스트 그대로 사용 (또는 result[0].place_name 사용 가능)
+
+      // 아래 네줄은 php로 넘어갈 유저 요구사항 배열
+      const hidden = document.createElement("input");
+      hidden.type = "hidden";
+      hidden.name = "commuteList[]";   // 중요!
+      hidden.value = text;
+      // 
+
+      const removeBtn = document.createElement("button");
+      removeBtn.className = "commute-remove";
+      removeBtn.textContent = "x";
+      removeBtn.addEventListener("click", () => {
+        commuteList.removeChild(item);
+        // 배열에서도 삭제
+        commuteLocations = commuteLocations.filter(loc => loc.name !== text);
+        console.log("통근 위치 삭제됨:", text);
+        console.log("현재 통근 위치 목록:", commuteLocations);
+      });
+
+      item.appendChild(nameSpan);
+      item.appendChild(removeBtn);
+      item.appendChild(hidden);  //php넘길것 아이템에 추가
+      commuteList.appendChild(item);
+
+      commuteInput.value = "";
+
+    } else {
+      alert("키워드로 장소를 찾을 수 없습니다. 정확한 장소명을 입력해주세요.");
+    }
   });
-
-  item.appendChild(nameSpan);
-  item.appendChild(removeBtn);
-  item.appendChild(hidden);  //php넘길것 아이템에 추가
-  commuteList.appendChild(item);
-
-  commuteInput.value = "";
 }
 
 if (commuteAddBtn) {
@@ -266,6 +295,7 @@ if (commuteAddBtn) {
 // Enter키 눌러도 저장
 if (commuteInput) {
   commuteInput.addEventListener("keydown", (e) => {
+    if (e.isComposing) return; // IME 입력 중(한글 조합 중)이면 무시
     if (e.key === "Enter") {
       e.preventDefault();
       addCommuteItem();
