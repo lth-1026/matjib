@@ -3,6 +3,47 @@ let allHouses = []; // Store all house data
 let markers = []; // Store current markers
 let selectedMarker = null;
 let markersById = {};
+let regionMap = {}; // regionId -> 행정구역명
+
+function getRegionNameById(id) {
+  return regionMap[id] || "";
+}
+
+function buildFullAddress(house) {
+  if (house.full_address) return house.full_address;
+  const regionName = house.region_name || getRegionNameById(house.address);
+  const detail = house.address_detail ? house.address_detail.trim() : "";
+  return detail ? `${regionName} ${detail}` : regionName;
+}
+
+function enrichHouse(item) {
+  const regionId = item.house.address;
+  const regionName = getRegionNameById(regionId);
+  const detail = item.house.address_detail || "";
+  const fullAddress = detail ? `${regionName} ${detail}` : regionName;
+  return {
+    ...item,
+    house: {
+      ...item.house,
+      region_id: regionId,
+      region_name: regionName,
+      full_address: fullAddress
+    }
+  };
+}
+
+async function loadRegions() {
+  if (Object.keys(regionMap).length > 0) return;
+  const res = await fetch("regions.json");
+  if (!res.ok) {
+    throw new Error("행정구역 정보를 불러오지 못했습니다.");
+  }
+  const list = await res.json();
+  regionMap = list.reduce((acc, region) => {
+    acc[region.id] = region.label;
+    return acc;
+  }, {});
+}
 
 // ========== AI 추천 알고리즘 ==========
 async function getAIRecommendation(filteredList) {
@@ -26,6 +67,7 @@ async function getAIRecommendation(filteredList) {
     // 1. 데이터 전처리: 통근 거리 계산 및 상위 후보 선정
     const candidates = filteredList.map(item => {
       const h = item.house;
+      const fullAddress = buildFullAddress(h);
       // 통근 거리 계산 (평균 거리)
       let totalDist = 0;
       if (commuteLocations.length > 0) {
@@ -39,7 +81,8 @@ async function getAIRecommendation(filteredList) {
 
       return {
         id: h.id,
-        address: h.address,
+        address: fullAddress,
+        address_id: h.region_id ?? h.address,
         deposit: h.deposit,
         rent: h.rent,
         maintenance_fee: h.maintenance_fee,
@@ -92,7 +135,8 @@ async function getAIRecommendation(filteredList) {
 
     // 5. 결과 처리: 추천 키워드들 중 하나라도 포함된 매물 필터링
     const aiFiltered = filteredList.filter(item => {
-      return keywords.some(k => item.house.address.includes(k));
+      const label = buildFullAddress(item.house);
+      return keywords.some(k => label.includes(k));
     });
 
     if (aiFiltered.length > 0) {
@@ -460,7 +504,7 @@ if (commuteInput) {
 document.addEventListener("DOMContentLoaded", () => {
 
   // SDK 로드가 끝난 뒤에 실행되도록
-  kakao.maps.load(() => {
+  kakao.maps.load(async () => {
     const container = document.getElementById("map");
     if (!container) return;
 
@@ -470,30 +514,28 @@ document.addEventListener("DOMContentLoaded", () => {
 
     });
 
-    fetch("houses.json")
-      .then(res => res.json())
-      .then(list => {
-        allHouses = list; // Save to global variable
+    try {
+      await loadRegions();
+      const list = await fetch("houses.json").then(res => res.json());
+      const processedList = list.map(enrichHouse);
+      allHouses = processedList;
 
-        // 초기 렌더링: 전체 목록 표시
-        updateMap(list);
-        // 초기에는 리스트 대신 특정 매물 상세를 보여주는 기존 로직 유지? 
-        // 아니면 리스트를 보여줄까? 사용자 요청은 "검색 버튼 클릭 시" 리스트이므로 초기 상태는 자유.
-        // 일단 초기에는 건대 매물 상세를 보여주는 기존 로직 유지.
+      // 초기 렌더링: 전체 목록 표시
+      updateMap(allHouses);
 
-        // 초기 좌표로 건대 매물 (광진구)
-        const firstItem = list.find(item => item.house.address.includes("광진구")) || list[0];
-        if (firstItem) {
-          const firstPos = new kakao.maps.LatLng(parseFloat(firstItem.house.lat), parseFloat(firstItem.house.lng));
-          map.setCenter(firstPos);
-          map.setLevel(4);
+      // 초기 좌표로 건대 매물 (광진구)
+      const firstItem = allHouses.find(item => buildFullAddress(item.house).includes("광진구")) || allHouses[0];
+      if (firstItem) {
+        const firstPos = new kakao.maps.LatLng(parseFloat(firstItem.house.lat), parseFloat(firstItem.house.lng));
+        map.setCenter(firstPos);
+        map.setLevel(4);
 
-          // 초기 상세정보 로드
-          loadDetail(firstItem.house.id);
-        }
-
-      })
-      .catch(console.error);
+        // 초기 상세정보 로드
+        loadDetail(firstItem.house.id);
+      }
+    } catch (err) {
+      console.error(err);
+    }
 
   });
 
@@ -555,12 +597,11 @@ function updateList(list, aiRecommendations = []) {
   const grouped = {};
   list.forEach(item => {
     const h = item.house;
-    // 주소에서 '구' 추출 (예: 서울 광진구 어딘가 -> 광진구)
-    // 데이터 형식이 "서울 XX구 ..." 라고 가정
-    const parts = h.address.split(" ");
+    const regionLabel = h.region_name || getRegionNameById(h.address);
     let region = "기타";
-    if (parts.length >= 2) {
-      region = parts[1]; // 두 번째 어절を 지역명으로 사용
+    if (regionLabel) {
+      const parts = regionLabel.split(" ");
+      region = parts[1] || regionLabel;
     }
 
     if (!grouped[region]) {
@@ -585,7 +626,7 @@ function updateList(list, aiRecommendations = []) {
     if (aiRecommendations.length > 0) {
       aiRecommendations.forEach(rec => {
         // 해당 지역(region)의 매물 중 하나라도 추천 키워드(rec.keyword)를 포함하는지 확인
-        const isMatch = grouped[region].some(item => item.house.address.includes(rec.keyword));
+        const isMatch = grouped[region].some(item => buildFullAddress(item.house).includes(rec.keyword));
         if (isMatch) {
           // 헤더에 버튼 추가
           const btn = document.createElement("button");
@@ -622,8 +663,9 @@ function updateList(list, aiRecommendations = []) {
         ? `전세 ${num(h.deposit)}`
         : `월세 ${num(h.deposit)} / ${num(h.rent)}`;
 
+      const fullAddress = buildFullAddress(h);
       el.innerHTML = `
-        <div class="list-item-title">${h.address}</div>
+        <div class="list-item-title">${fullAddress}</div>
         <div class="list-item-price">${priceStr}</div>
         <div class="list-item-info">${h.room_type} · ${h.area_m2}m² · ${h.floor}층</div>
       `;
