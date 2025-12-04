@@ -1,11 +1,177 @@
-
+const OPENAI_API_KEY = ""; // 이곳에 OpenAI API 키를 입력하세요
 let map;
 let allHouses = []; // Store all house data
 let markers = []; // Store current markers
 let selectedMarker = null;
 let markersById = {};
 
-// ========== 보증금 슬라이더 입력처리 ==========
+// ========== AI 추천 알고리즘 ==========
+async function getAIRecommendation(filteredList) {
+  if (!OPENAI_API_KEY) {
+    alert("스크립트 상단에 OpenAI API 키를 설정해주세요.");
+    return;
+  }
+
+  if (filteredList.length === 0) {
+    // alert("추천할 매물이 없습니다.");
+    return;
+  }
+
+  // 로딩 표시 (버튼)
+  const searchBtn = document.getElementById("searchBtn");
+  const originalBtnText = searchBtn ? searchBtn.innerHTML : "맺집 찾기";
+
+  if (searchBtn) {
+    searchBtn.disabled = true;
+    searchBtn.innerHTML = '<span class="button-spinner"></span> 분석 중...';
+  }
+
+  try {
+    // 1. 데이터 전처리: 통근 거리 계산 및 상위 후보 선정
+    const candidates = filteredList.map(item => {
+      const h = item.house;
+      // 통근 거리 계산 (평균 거리)
+      let totalDist = 0;
+      if (commuteLocations.length > 0) {
+        commuteLocations.forEach(loc => {
+          totalDist += getDistanceFromLatLonInKm(h.lat, h.lng, loc.y, loc.x);
+        });
+        h.avgCommuteDist = totalDist / commuteLocations.length;
+      } else {
+        h.avgCommuteDist = 0;
+      }
+
+      return {
+        id: h.id,
+        address: h.address,
+        deposit: h.deposit,
+        rent: h.rent,
+        maintenance_fee: h.maintenance_fee,
+        lifestyle: item.lifestyle,
+        avgCommuteDist: h.avgCommuteDist
+      };
+    });
+
+    // 통근 위치가 있다면 거리순으로 정렬하여 상위 30개만 API에 전송 (토큰 절약)
+    if (commuteLocations.length > 0) {
+      candidates.sort((a, b) => a.avgCommuteDist - b.avgCommuteDist);
+    }
+    const topCandidates = candidates.slice(0, 30);
+
+    // 2. 사용자 요구사항 구성
+    const rentTypeChip = document.querySelector("#rent-type .chip.active");
+    const userReq = {
+      rentType: rentTypeChip ? rentTypeChip.textContent : "전체",
+      depositMin: document.getElementById("depositMin").value,
+      depositMax: document.getElementById("depositMax").value,
+      rentMin: document.getElementById("rentMin").value,
+      rentMax: document.getElementById("rentMax").value,
+      commuteLocations: commuteLocations.map(l => l.name) // 좌표 대신 이름만 보내도 됨 (거리는 이미 계산해서 보냄)
+    };
+
+    // 3. 프롬프트 구성
+    const prompt = `
+      Role: Real estate recommendation expert.
+      Task: Analyze the Candidate Houses and recommend TOP 2-3 NEIGHBORHOODS (e.g. specific Dong or Gu name present in addresses) for the user.
+      
+      User Requirements:
+      ${JSON.stringify(userReq)}
+      
+      Candidate Houses (Pre-calculated avgCommuteDist included):
+      ${JSON.stringify(topCandidates)}
+      
+      Rules:
+      1. Group houses by neighborhood (based on address).
+      2. Evaluate each neighborhood based on commute distance and lifestyle match.
+      3. Output Format: JSON only. No markdown.
+      {
+          "recommendations": [
+              {
+                  "keyword": "String (e.g. '자양동')",
+                  "reason": "String (Korean explanation)"
+              },
+              {
+                  "keyword": "String (e.g. '화양동')",
+                  "reason": "String (Korean explanation)"
+              }
+          ]
+      }
+    `;
+
+    // 4. API 호출
+    const res = await fetch("https://api.openai.com/v1/chat/completions", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "Authorization": `Bearer ${OPENAI_API_KEY}`
+      },
+      body: JSON.stringify({
+        model: "gpt-4o",
+        messages: [{ role: "user", content: prompt }],
+        response_format: { type: "json_object" }
+      })
+    });
+
+    const data = await res.json();
+    if (data.error) {
+      throw new Error(data.error.message);
+    }
+
+    const content = JSON.parse(data.choices[0].message.content);
+    console.log("AI 추천 결과:", content);
+
+    const recommendations = content.recommendations;
+    const keywords = recommendations.map(r => r.keyword);
+
+    // 5. 결과 처리: 추천 키워드들 중 하나라도 포함된 매물 필터링
+    const aiFiltered = filteredList.filter(item => {
+      return keywords.some(k => item.house.address.includes(k));
+    });
+
+    if (aiFiltered.length > 0) {
+      // 맵과 리스트 업데이트 (추천 사유 전달)
+      updateMap(aiFiltered);
+      updateList(aiFiltered, recommendations);
+
+      // 첫 번째 매물로 지도 중심 이동
+      const first = aiFiltered[0].house;
+      const moveLatLon = new kakao.maps.LatLng(parseFloat(first.lat), parseFloat(first.lng));
+      map.setCenter(moveLatLon);
+
+      // Alert 제거됨
+    } else {
+      console.log(`AI가 추천한 지역(${keywords.join(", ")})에 해당하는 매물을 찾을 수 없습니다.`);
+    }
+
+  } catch (e) {
+    console.error(e);
+    // alert("AI 추천 중 오류가 발생했습니다: " + e.message);
+  } finally {
+    // 로딩 숨김 및 버튼 복구
+    if (searchBtn) {
+      searchBtn.disabled = false;
+      searchBtn.innerHTML = originalBtnText;
+    }
+  }
+}
+
+// 거리 계산 함수 (Haversine formula)
+function getDistanceFromLatLonInKm(lat1, lon1, lat2, lon2) {
+  var R = 6371; // Radius of the earth in km
+  var dLat = deg2rad(lat2 - lat1);
+  var dLon = deg2rad(lon2 - lon1);
+  var a =
+    Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+    Math.cos(deg2rad(lat1)) * Math.cos(deg2rad(lat2)) *
+    Math.sin(dLon / 2) * Math.sin(dLon / 2);
+  var c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+  var d = R * c; // Distance in km
+  return d;
+}
+
+function deg2rad(deg) {
+  return deg * (Math.PI / 180);
+}
 const minInput = document.getElementById("depositMin");
 const maxInput = document.getElementById("depositMax");
 const depositLabel = document.getElementById("depositLabel");
@@ -207,6 +373,9 @@ if (userForm) {
       const first = filtered[0].house;
       const moveLatLon = new kakao.maps.LatLng(parseFloat(first.lat), parseFloat(first.lng));
       map.setCenter(moveLatLon);
+
+      // AI 추천 실행 (검색 트리거)
+      getAIRecommendation(filtered);
     }
   });
 }
@@ -410,7 +579,7 @@ function updateMap(list) {
   });
 }
 
-function updateList(list) {
+function updateList(list, aiRecommendations = []) {
   const listContent = document.getElementById("list-content");
   if (!listContent) return;
   listContent.innerHTML = ""; // 초기화
@@ -424,7 +593,7 @@ function updateList(list) {
     const parts = h.address.split(" ");
     let region = "기타";
     if (parts.length >= 2) {
-      region = parts[1]; // 두 번째 어절을 지역명으로 사용
+      region = parts[1]; // 두 번째 어절を 지역명으로 사용
     }
 
     if (!grouped[region]) {
@@ -444,6 +613,36 @@ function updateList(list) {
     header.className = "list-section-header";
     header.textContent = region;
     section.appendChild(header);
+
+    // AI 추천 사유 표시
+    if (aiRecommendations.length > 0) {
+      aiRecommendations.forEach(rec => {
+        // 해당 지역(region)의 매물 중 하나라도 추천 키워드(rec.keyword)를 포함하는지 확인
+        const isMatch = grouped[region].some(item => item.house.address.includes(rec.keyword));
+        if (isMatch) {
+          // 헤더에 버튼 추가
+          const btn = document.createElement("button");
+          btn.className = "ai-reason-btn";
+          btn.textContent = "AI 추천 이유 보기";
+          header.appendChild(btn);
+
+          // 이유 박스 (숨김 상태로 시작)
+          const reasonBox = document.createElement("div");
+          reasonBox.className = "recommendation-reason";
+          reasonBox.style.display = "none";
+          reasonBox.innerHTML = `<strong>${rec.keyword} 추천 이유</strong><br>${rec.reason}`;
+          section.appendChild(reasonBox);
+
+          // 버튼 클릭 이벤트
+          btn.addEventListener("click", (e) => {
+            e.stopPropagation();
+            const isVisible = reasonBox.style.display === "block";
+            reasonBox.style.display = isVisible ? "none" : "block";
+            btn.textContent = isVisible ? "AI 추천 이유 보기" : "접기";
+          });
+        }
+      });
+    }
 
     // 아이템들
     grouped[region].forEach(item => {
