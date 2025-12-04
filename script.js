@@ -193,12 +193,12 @@ document.querySelector("#userForm").addEventListener("submit", (e) => {
     alert("조건에 맞는 매물이 없습니다.");
   } else {
     updateMap(filtered);
+    updateList(filtered); // 리스트 업데이트 및 뷰 전환
 
     // 첫 번째 매물로 중심 이동 및 상세정보 표시
     const first = filtered[0].house;
     const moveLatLon = new kakao.maps.LatLng(parseFloat(first.lat), parseFloat(first.lng));
     map.setCenter(moveLatLon);
-    loadDetail(first.id);
   }
 });
 
@@ -281,6 +281,9 @@ document.addEventListener("DOMContentLoaded", () => {
 
         // 초기 렌더링: 전체 목록 표시
         updateMap(list);
+        // 초기에는 리스트 대신 특정 매물 상세를 보여주는 기존 로직 유지? 
+        // 아니면 리스트를 보여줄까? 사용자 요청은 "검색 버튼 클릭 시" 리스트이므로 초기 상태는 자유.
+        // 일단 초기에는 건대 매물 상세를 보여주는 기존 로직 유지.
 
         // 초기 좌표로 건대 매물 (광진구)
         const firstItem = list.find(item => item.house.address.includes("광진구")) || list[0];
@@ -289,13 +292,19 @@ document.addEventListener("DOMContentLoaded", () => {
           map.setCenter(firstPos);
           map.setLevel(4);
 
-          // 초기 상세정보도 같이 로드
+          // 초기 상세정보 로드
           loadDetail(firstItem.house.id);
         }
 
       })
       .catch(console.error);
 
+  });
+
+  // 목록으로 돌아가기 버튼 이벤트
+  document.getElementById("backToListBtn").addEventListener("click", () => {
+    document.getElementById("detail-view").style.display = "none";
+    document.getElementById("list-view").style.display = "flex";
   });
 
 });
@@ -321,11 +330,84 @@ function updateMap(list) {
   });
 }
 
+function updateList(list) {
+  const listContent = document.getElementById("list-content");
+  listContent.innerHTML = ""; // 초기화
+
+  // 지역별 그룹핑
+  const grouped = {};
+  list.forEach(item => {
+    const h = item.house;
+    // 주소에서 '구' 추출 (예: 서울 광진구 어딘가 -> 광진구)
+    // 데이터 형식이 "서울 XX구 ..." 라고 가정
+    const parts = h.address.split(" ");
+    let region = "기타";
+    if (parts.length >= 2) {
+      region = parts[1]; // 두 번째 어절을 지역명으로 사용
+    }
+
+    if (!grouped[region]) {
+      grouped[region] = [];
+    }
+    grouped[region].push(item);
+  });
+
+  // 그룹별 렌더링
+  for (const region in grouped) {
+    // 섹션 컨테이너
+    const section = document.createElement("div");
+    section.className = "list-section";
+
+    // 헤더
+    const header = document.createElement("div");
+    header.className = "list-section-header";
+    header.textContent = region;
+    section.appendChild(header);
+
+    // 아이템들
+    grouped[region].forEach(item => {
+      const h = item.house;
+      const el = document.createElement("div");
+      el.className = "list-item";
+
+      // 가격 문자열
+      const priceStr = (h.rent_type === "전세")
+        ? `전세 ${num(h.deposit)}`
+        : `월세 ${num(h.deposit)} / ${num(h.rent)}`;
+
+      el.innerHTML = `
+        <div class="list-item-title">${h.address}</div>
+        <div class="list-item-price">${priceStr}</div>
+        <div class="list-item-info">${h.room_type} · ${h.area_m2}m² · ${h.floor}층</div>
+      `;
+
+      el.addEventListener("click", () => {
+        loadDetail(h.id);
+      });
+
+      section.appendChild(el);
+    });
+
+    listContent.appendChild(section);
+  }
+
+  // 뷰 전환: 리스트 보이기, 상세 숨기기
+  document.getElementById("list-view").style.display = "flex";
+  document.getElementById("detail-view").style.display = "none";
+}
+
 function loadDetail(id) {
   // Find data from global array instead of fetching
   const item = allHouses.find(i => i.house.id == id);
   if (item) {
     renderDetail(item.house, item.lifestyle);
+
+    // 상세 뷰 보이기, 리스트 숨기기
+    document.getElementById("detail-view").style.display = "block";
+    document.getElementById("list-view").style.display = "none";
+
+    // 목록으로 돌아가기 버튼 보이기 (검색 결과가 있을 때만 의미가 있지만, 일단 항상 표시)
+    document.getElementById("backToListBtn").style.display = "block";
   } else {
     console.error("House not found:", id);
   }
