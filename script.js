@@ -1,11 +1,237 @@
-
 let map;
 let allHouses = []; // Store all house data
 let markers = []; // Store current markers
 let selectedMarker = null;
 let markersById = {};
+let regionMap = {}; // regionId -> 지역 정보
+const LIFESTYLE_META = [
+  { key: "walk", label: "산책" },
+  { key: "running", label: "러닝" },
+  { key: "pet", label: "반려동물" },
+  { key: "gym", label: "헬스" },
+  { key: "concert", label: "콘서트" },
+  { key: "cafe", label: "카페" },
+  { key: "hiking", label: "등산" },
+  { key: "baseball", label: "야구" }
+];
 
-// ========== 보증금 슬라이더 입력처리 ==========
+function getRegionInfoById(id) {
+  if (id === undefined || id === null) return null;
+  const key = String(id);
+  return regionMap[key] || null;
+}
+
+function getRegionNameById(id) {
+  const info = getRegionInfoById(id);
+  return info ? info.label : "";
+}
+
+function getRegionProfileById(id) {
+  const info = getRegionInfoById(id);
+  return info ? info.lifestyle : null;
+}
+
+function buildFullAddress(house) {
+  if (house.full_address) return house.full_address;
+  const regionName = house.region_name || getRegionNameById(house.address);
+  const detail = house.address_detail ? house.address_detail.trim() : "";
+  return detail ? `${regionName} ${detail}` : regionName;
+}
+
+function enrichHouse(item) {
+  const regionId = item.house.address;
+  const regionInfo = getRegionInfoById(regionId) || {};
+  const regionName = regionInfo.label || "";
+  const detail = item.house.address_detail || "";
+  const fullAddress = detail ? `${regionName} ${detail}` : regionName;
+  return {
+    ...item,
+    house: {
+      ...item.house,
+      region_id: regionId,
+      region_name: regionName,
+      region_info: regionInfo,
+      region_profile: regionInfo.lifestyle || null,
+      full_address: fullAddress
+    }
+  };
+}
+
+async function loadRegions() {
+  if (Object.keys(regionMap).length > 0) return;
+  const res = await fetch("regions.json");
+  if (!res.ok) {
+    throw new Error("행정구역 정보를 불러오지 못했습니다.");
+  }
+  const list = await res.json();
+  regionMap = list.reduce((acc, region) => {
+    acc[String(region.id)] = region;
+    return acc;
+  }, {});
+}
+
+function getLifestyleSelections() {
+  const chips = document.querySelectorAll("#lifestyle .chip");
+  return LIFESTYLE_META.map((meta, idx) => ({
+    ...meta,
+    active: chips[idx] ? chips[idx].classList.contains("active") : false
+  }));
+}
+
+// ========== AI 추천 알고리즘 ==========
+async function getAIRecommendation(filteredList) {
+
+
+  if (filteredList.length === 0) {
+    // alert("추천할 매물이 없습니다.");
+    return;
+  }
+
+  // 로딩 표시 (버튼)
+  const searchBtn = document.getElementById("searchBtn");
+  const originalBtnText = searchBtn ? searchBtn.innerHTML : "맺집 찾기";
+
+  if (searchBtn) {
+    searchBtn.disabled = true;
+    searchBtn.innerHTML = '<span class="button-spinner"></span> 분석 중...';
+  }
+
+  try {
+    // 1. 데이터 전처리: 통근 거리 계산 및 상위 후보 선정
+    const candidates = filteredList.map(item => {
+      const h = item.house;
+      const fullAddress = buildFullAddress(h);
+      const regionId = h.region_id ?? h.address;
+      const regionName = h.region_name || getRegionNameById(regionId);
+      const regionProfile = h.region_profile || getRegionProfileById(regionId);
+      // 통근 거리 계산 (평균 거리)
+      let totalDist = 0;
+      if (commuteLocations.length > 0) {
+        commuteLocations.forEach(loc => {
+          totalDist += getDistanceFromLatLonInKm(h.lat, h.lng, loc.y, loc.x);
+        });
+        h.avgCommuteDist = totalDist / commuteLocations.length;
+      } else {
+        h.avgCommuteDist = 0;
+      }
+
+      return {
+        id: h.id,
+        address: fullAddress,
+        address_id: regionId,
+        region_label: regionName,
+        region_profile: regionProfile,
+        deposit: h.deposit,
+        rent: h.rent,
+        maintenance_fee: h.maintenance_fee,
+        lifestyle: item.lifestyle,
+        avgCommuteDist: h.avgCommuteDist
+      };
+    });
+
+    // 통근 위치가 있다면 거리순으로 정렬하여 상위 30개만 API에 전송 (토큰 절약)
+    if (commuteLocations.length > 0) {
+      candidates.sort((a, b) => a.avgCommuteDist - b.avgCommuteDist);
+    }
+    const topCandidates = candidates.slice(0, 30);
+    const regionProfiles = topCandidates.reduce((acc, item) => {
+      if (item.region_label && item.region_profile) {
+        acc[item.region_label] = item.region_profile;
+      }
+      return acc;
+    }, {});
+    const lifestyleSelections = getLifestyleSelections();
+    const activeLifestyle = lifestyleSelections.filter(item => item.active);
+
+    // 2. 사용자 요구사항 구성
+    const rentTypeChip = document.querySelector("#rent-type .chip.active");
+    const userReq = {
+      rentType: rentTypeChip ? rentTypeChip.textContent : "전체",
+      depositMin: document.getElementById("depositMin").value,
+      depositMax: document.getElementById("depositMax").value,
+      rentMin: document.getElementById("rentMin").value,
+      rentMax: document.getElementById("rentMax").value,
+      commuteLocations: commuteLocations.map(l => l.name), // 좌표 대신 이름만 보내도 됨 (거리는 이미 계산해서 보냄)
+      lifestyleSelections: lifestyleSelections,
+      activeLifestyle: activeLifestyle
+    };
+
+    // 3. Cloudflare Worker 호출
+    const WORKER_URL = "https://matjib-ai.th20001026.workers.dev";
+
+    const res = await fetch(WORKER_URL, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json"
+      },
+      body: JSON.stringify({
+        userReq: userReq,
+        topCandidates: topCandidates,
+        regionProfiles: regionProfiles
+      })
+    });
+
+    const data = await res.json();
+    if (data.error) {
+      throw new Error(data.error.message);
+    }
+
+    const content = JSON.parse(data.choices[0].message.content);
+    console.log("AI 추천 결과:", content);
+
+    const recommendations = content.recommendations;
+    const keywords = recommendations.map(r => r.keyword);
+
+    // 5. 결과 처리: 추천 키워드들 중 하나라도 포함된 매물 필터링
+    const aiFiltered = filteredList.filter(item => {
+      const label = buildFullAddress(item.house);
+      return keywords.some(k => label.includes(k));
+    });
+
+    if (aiFiltered.length > 0) {
+      // 맵과 리스트 업데이트 (추천 사유 전달)
+      updateMap(aiFiltered);
+      updateList(aiFiltered, recommendations);
+
+      // 첫 번째 매물로 지도 중심 이동
+      const first = aiFiltered[0].house;
+      const moveLatLon = new kakao.maps.LatLng(parseFloat(first.lat), parseFloat(first.lng));
+      map.setCenter(moveLatLon);
+
+      // Alert 제거됨
+    } else {
+      console.log(`AI가 추천한 지역(${keywords.join(", ")})에 해당하는 매물을 찾을 수 없습니다.`);
+    }
+
+  } catch (e) {
+    console.error(e);
+    // alert("AI 추천 중 오류가 발생했습니다: " + e.message);
+  } finally {
+    // 로딩 숨김 및 버튼 복구
+    if (searchBtn) {
+      searchBtn.disabled = false;
+      searchBtn.innerHTML = originalBtnText;
+    }
+  }
+}
+
+// 거리 계산 함수 (Haversine formula)
+function getDistanceFromLatLonInKm(lat1, lon1, lat2, lon2) {
+  var R = 6371; // Radius of the earth in km
+  var dLat = deg2rad(lat2 - lat1);
+  var dLon = deg2rad(lon2 - lon1);
+  var a =
+    Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+    Math.cos(deg2rad(lat1)) * Math.cos(deg2rad(lat2)) *
+    Math.sin(dLon / 2) * Math.sin(dLon / 2);
+  var c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+  var d = R * c; // Distance in km
+  return d;
+}
+
+function deg2rad(deg) {
+  return deg * (Math.PI / 180);
+}
 const minInput = document.getElementById("depositMin");
 const maxInput = document.getElementById("depositMax");
 const depositLabel = document.getElementById("depositLabel");
@@ -141,17 +367,11 @@ if (userForm) {
     const areaText = areaChip ? areaChip.textContent : "전체";
 
     // 라이프스타일 활성화 여부 확인
-    const lifestyleChips = document.querySelectorAll("#lifestyle .chip");
-    const lifestyleConditions = [
-      { key: 'walk', active: lifestyleChips[0].classList.contains("active") },
-      { key: 'running', active: lifestyleChips[1].classList.contains("active") },
-      { key: 'pet', active: lifestyleChips[2].classList.contains("active") },
-      { key: 'gym', active: lifestyleChips[3].classList.contains("active") },
-      { key: 'concert', active: lifestyleChips[4].classList.contains("active") },
-      { key: 'cafe', active: lifestyleChips[5].classList.contains("active") },
-      { key: 'hiking', active: lifestyleChips[6].classList.contains("active") },
-      { key: 'baseball', active: lifestyleChips[7].classList.contains("active") },
-    ];
+    const lifestyleSelections = getLifestyleSelections();
+    const lifestyleConditions = lifestyleSelections.map(sel => ({
+      key: sel.key,
+      active: sel.active
+    }));
 
     // 2. 필터링 로직
     const filtered = allHouses.filter(item => {
@@ -207,6 +427,9 @@ if (userForm) {
       const first = filtered[0].house;
       const moveLatLon = new kakao.maps.LatLng(parseFloat(first.lat), parseFloat(first.lng));
       map.setCenter(moveLatLon);
+
+      // AI 추천 실행 (검색 트리거)
+      getAIRecommendation(filtered);
     }
   });
 }
@@ -217,6 +440,7 @@ if (userForm) {
 const commuteInput = document.getElementById("commuteInput");
 const commuteAddBtn = document.getElementById("commuteAddBtn");
 const commuteList = document.getElementById("commuteList");
+let commuteLocations = []; // 좌표 저장용 배열
 
 function addCommuteItem() {
   const text = commuteInput.value.trim();
@@ -230,33 +454,78 @@ function addCommuteItem() {
     return;
   }
 
-  const item = document.createElement("div");
-  item.className = "commute-item";
+  // 장소 검색 객체 생성 (키워드 검색용)
+  const ps = new kakao.maps.services.Places();
 
-  const nameSpan = document.createElement("span");
-  nameSpan.className = "commute-item-name";
-  nameSpan.textContent = text;
+  // 키워드로 장소를 검색합니다
+  ps.keywordSearch(text, function (result, status) {
+    // 정상적으로 검색이 완료됐으면 
+    if (status === kakao.maps.services.Status.OK) {
+      const x = result[0].x;
+      const y = result[0].y;
+      const coords = new kakao.maps.LatLng(y, x);
 
-  // 아래 네줄은 php로 넘어갈 유저 요구사항 배열
-  const hidden = document.createElement("input");
-  hidden.type = "hidden";
-  hidden.name = "commuteList[]";   // 중요!
-  hidden.value = text;
-  // 
+      // 통근 위치 마커 생성 (구분을 위해 다른 이미지나 색상을 쓸 수 있지만 일단 기본 마커 사용)
+      // 매물 마커와 겹칠 수 있으니 z-index를 높이거나 다른 스타일 적용 고려 가능
+      const marker = new kakao.maps.Marker({
+        position: coords,
+        map: map
+      });
 
-  const removeBtn = document.createElement("button");
-  removeBtn.className = "commute-remove";
-  removeBtn.textContent = "x";
-  removeBtn.addEventListener("click", () => {
-    commuteList.removeChild(item);
+      const locationData = {
+        name: text,
+        x: x, // 경도 (lng)
+        y: y, // 위도 (lat)
+        marker: marker // 마커 객체 저장
+      };
+
+      // 좌표 배열에 저장
+      commuteLocations.push(locationData);
+      console.log("통근 위치 추가됨:", locationData);
+
+      // 지도 중심 이동
+      map.setCenter(coords);
+
+      // UI 추가
+      const item = document.createElement("div");
+      item.className = "commute-item";
+
+      const nameSpan = document.createElement("span");
+      nameSpan.className = "commute-item-name";
+      nameSpan.textContent = text; // 입력한 텍스트 그대로 사용
+
+      // 아래 네줄은 php로 넘어갈 유저 요구사항 배열
+      const hidden = document.createElement("input");
+      hidden.type = "hidden";
+      hidden.name = "commuteList[]";   // 중요!
+      hidden.value = text;
+      // 
+
+      const removeBtn = document.createElement("button");
+      removeBtn.className = "commute-remove";
+      removeBtn.textContent = "x";
+      removeBtn.addEventListener("click", () => {
+        commuteList.removeChild(item);
+
+        // 마커 지도에서 제거
+        marker.setMap(null);
+
+        // 배열에서도 삭제
+        commuteLocations = commuteLocations.filter(loc => loc.name !== text);
+        console.log("통근 위치 삭제됨:", text);
+      });
+
+      item.appendChild(nameSpan);
+      item.appendChild(removeBtn);
+      item.appendChild(hidden);  //php넘길것 아이템에 추가
+      commuteList.appendChild(item);
+
+      commuteInput.value = "";
+
+    } else {
+      alert("키워드로 장소를 찾을 수 없습니다. 정확한 장소명을 입력해주세요.");
+    }
   });
-
-  item.appendChild(nameSpan);
-  item.appendChild(removeBtn);
-  item.appendChild(hidden);  //php넘길것 아이템에 추가
-  commuteList.appendChild(item);
-
-  commuteInput.value = "";
 }
 
 if (commuteAddBtn) {
@@ -266,6 +535,7 @@ if (commuteAddBtn) {
 // Enter키 눌러도 저장
 if (commuteInput) {
   commuteInput.addEventListener("keydown", (e) => {
+    if (e.isComposing) return; // IME 입력 중(한글 조합 중)이면 무시
     if (e.key === "Enter") {
       e.preventDefault();
       addCommuteItem();
@@ -277,7 +547,7 @@ if (commuteInput) {
 document.addEventListener("DOMContentLoaded", () => {
 
   // SDK 로드가 끝난 뒤에 실행되도록
-  kakao.maps.load(() => {
+  kakao.maps.load(async () => {
     const container = document.getElementById("map");
     if (!container) return;
 
@@ -287,30 +557,28 @@ document.addEventListener("DOMContentLoaded", () => {
 
     });
 
-    fetch("houses.json")
-      .then(res => res.json())
-      .then(list => {
-        allHouses = list; // Save to global variable
+    try {
+      await loadRegions();
+      const list = await fetch("houses.json").then(res => res.json());
+      const processedList = list.map(enrichHouse);
+      allHouses = processedList;
 
-        // 초기 렌더링: 전체 목록 표시
-        updateMap(list);
-        // 초기에는 리스트 대신 특정 매물 상세를 보여주는 기존 로직 유지? 
-        // 아니면 리스트를 보여줄까? 사용자 요청은 "검색 버튼 클릭 시" 리스트이므로 초기 상태는 자유.
-        // 일단 초기에는 건대 매물 상세를 보여주는 기존 로직 유지.
+      // 초기 렌더링: 전체 목록 표시
+      updateMap(allHouses);
 
-        // 초기 좌표로 건대 매물 (광진구)
-        const firstItem = list.find(item => item.house.address.includes("광진구")) || list[0];
-        if (firstItem) {
-          const firstPos = new kakao.maps.LatLng(parseFloat(firstItem.house.lat), parseFloat(firstItem.house.lng));
-          map.setCenter(firstPos);
-          map.setLevel(4);
+      // 초기 좌표로 건대 매물 (광진구)
+      const firstItem = allHouses.find(item => buildFullAddress(item.house).includes("광진구")) || allHouses[0];
+      if (firstItem) {
+        const firstPos = new kakao.maps.LatLng(parseFloat(firstItem.house.lat), parseFloat(firstItem.house.lng));
+        map.setCenter(firstPos);
+        map.setLevel(4);
 
-          // 초기 상세정보 로드
-          loadDetail(firstItem.house.id);
-        }
-
-      })
-      .catch(console.error);
+        // 초기 상세정보 로드
+        loadDetail(firstItem.house.id);
+      }
+    } catch (err) {
+      console.error(err);
+    }
 
   });
 
@@ -363,7 +631,7 @@ function updateMap(list) {
   });
 }
 
-function updateList(list) {
+function updateList(list, aiRecommendations = []) {
   const listContent = document.getElementById("list-content");
   if (!listContent) return;
   listContent.innerHTML = ""; // 초기화
@@ -372,12 +640,11 @@ function updateList(list) {
   const grouped = {};
   list.forEach(item => {
     const h = item.house;
-    // 주소에서 '구' 추출 (예: 서울 광진구 어딘가 -> 광진구)
-    // 데이터 형식이 "서울 XX구 ..." 라고 가정
-    const parts = h.address.split(" ");
+    const regionLabel = h.region_name || getRegionNameById(h.address);
     let region = "기타";
-    if (parts.length >= 2) {
-      region = parts[1]; // 두 번째 어절을 지역명으로 사용
+    if (regionLabel) {
+      const parts = regionLabel.split(" ");
+      region = parts[1] || regionLabel;
     }
 
     if (!grouped[region]) {
@@ -398,6 +665,36 @@ function updateList(list) {
     header.textContent = region;
     section.appendChild(header);
 
+    // AI 추천 사유 표시
+    if (aiRecommendations.length > 0) {
+      aiRecommendations.forEach(rec => {
+        // 해당 지역(region)의 매물 중 하나라도 추천 키워드(rec.keyword)를 포함하는지 확인
+        const isMatch = grouped[region].some(item => buildFullAddress(item.house).includes(rec.keyword));
+        if (isMatch) {
+          // 헤더에 버튼 추가
+          const btn = document.createElement("button");
+          btn.className = "ai-reason-btn";
+          btn.textContent = "AI 추천 이유 보기";
+          header.appendChild(btn);
+
+          // 이유 박스 (숨김 상태로 시작)
+          const reasonBox = document.createElement("div");
+          reasonBox.className = "recommendation-reason";
+          reasonBox.style.display = "none";
+          reasonBox.innerHTML = `<strong>${rec.keyword} 추천 이유</strong><br>${rec.reason}`;
+          section.appendChild(reasonBox);
+
+          // 버튼 클릭 이벤트
+          btn.addEventListener("click", (e) => {
+            e.stopPropagation();
+            const isVisible = reasonBox.style.display === "block";
+            reasonBox.style.display = isVisible ? "none" : "block";
+            btn.textContent = isVisible ? "AI 추천 이유 보기" : "접기";
+          });
+        }
+      });
+    }
+
     // 아이템들
     grouped[region].forEach(item => {
       const h = item.house;
@@ -409,8 +706,9 @@ function updateList(list) {
         ? `전세 ${num(h.deposit)}`
         : `월세 ${num(h.deposit)} / ${num(h.rent)}`;
 
+      const fullAddress = buildFullAddress(h);
       el.innerHTML = `
-        <div class="list-item-title">${h.address}</div>
+        <div class="list-item-title">${fullAddress}</div>
         <div class="list-item-price">${priceStr}</div>
         <div class="list-item-info">${h.room_type} · ${h.area_m2}m² · ${h.floor}층</div>
       `;
