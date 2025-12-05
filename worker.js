@@ -126,7 +126,7 @@ export default {
 
           Rules:
           1. Group houses by neighborhood (based on address).
-          2. Evaluate each neighborhood based on commute distance and lifestyle match.
+          2. PRIORITIZE COMMUTE DISTANCE ABOVE ALL ELSE. The neighborhood with the shortest average commute distance must be strongly considered. Lifestyle match is secondary.
           3. Leverage region_profile notes alongside each house's lifestyle data to judge how well the area's character fits the user's needs.
           4. For every recommendation reason, explicitly mention which selected lifestyle labels (e.g. '산책', '카페') are satisfied and cite concrete evidence (region_profile or house lifestyle metrics). If no lifestyle filter is active, explain the neighborhood's general strengths.
           5. Output Format: JSON only. No markdown.
