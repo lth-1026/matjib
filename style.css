@@ -136,6 +136,18 @@ input[type="range"] {
   cursor: pointer;
 }
 
+.button-cancel {
+  width: 100%;
+  margin-top: 16px;
+  padding: 10px;
+  border-radius: 8px;
+  border: none;
+  font-weight: 600;
+  background: #e4d9c2;
+  cursor: pointer;
+  color: #4c2b08;
+}
+
 /* map */
 .map-area {
   flex: 1;
@@ -157,16 +169,18 @@ input[type="range"] {
 }
 
 .thumbs {
-  display: grid;
-  grid-template-columns: repeat(3, 1fr);
-  gap: 4px;
+  display: flex;
+  gap: 6px;
   margin-bottom: 8px;
 }
 
-.thumbs div {
-  background: #ddd;
-  height: 70px;
-  border-radius: 6px;
+.thumbs>div {
+  flex: 1;
+  height: 80px;
+  border-radius: 8px;
+  background-color: #ddd;
+  background-size: cover;
+  background-position: center;
 }
 
 .price {
@@ -389,12 +403,88 @@ input[type="range"] {
   font-weight: 700;
 }
 
-.line2 {
-  background: #00a65a;
+/* Seoul Metro Line Colors (1~9) */
+.line1 {
+  background: #0052A4;
 }
 
+/* 1호선 - Blue (Pantone 286C) */
+.line2 {
+  background: #00A84D;
+}
+
+/* 2호선 - Green (Pantone 354C) */
+.line3 {
+  background: #EF7C1C;
+}
+
+/* 3호선 - Orange (Pantone 1655C) */
+.line4 {
+  background: #00A5DE;
+}
+
+/* 4호선 - Sky Blue (Pantone 2995C 90%) */
+.line5 {
+  background: #996CAC;
+}
+
+/* 5호선 - Purple (Pantone 2583C) */
+.line6 {
+  background: #CD7C2F;
+}
+
+/* 6호선 - Brownish Orange (Pantone 1675C 80%) */
 .line7 {
-  background: #747f00;
+  background: #747F00;
+}
+
+/* 7호선 - Olive Green (Pantone 5757C) */
+.line8 {
+  background: #E6186C;
+}
+
+/* 8호선 - Pink (Pantone 213C) */
+.line9 {
+  background: #BDB092;
+}
+
+/* 9호선 - Gold Beige (Pantone 872C 70%) */
+
+/* --- Extra Seoul Metropolitan Subway Lines --- */
+
+/* 신분당선 (Shinbundang Line) - Red */
+.lineSBD {
+  background: #D31145;
+}
+
+/* 수인분당선 (Suin-Bundang Line) - Yellow */
+.lineSBDG {
+  background: #F5A200;
+}
+
+/* 경의중앙선 (Gyeongui-Jungang Line) - Teal/Blue-Green */
+.lineGJ {
+  background: #73C7A6;
+}
+
+/* 공항철도 (AREX - Airport Railroad) - Sky Blue */
+.lineAREX {
+  background: #0090D2;
+}
+
+/* 경춘선 (Gyeongchun Line) - Turquoise */
+.lineGC {
+  background: #0C8E72;
+}
+
+/* 의정부경전철 (U Line) - Bright Purple */
+.lineUL {
+  background: #B7C452;
+}
+
+/* 경강선 (Gyeonggang Line) */
+.lineKG {
+  background: #005BAC;
 }
 
 /* bus line colors */
@@ -563,4 +653,40 @@ input[type="range"] {
   font-size: 0.9rem;
   color: #5d4037;
   line-height: 1.4;
+}
+
+#overlay {
+  position: fixed;
+  /* Sit on top of the page content */
+  display: none;
+  /* Hidden by default */
+  justify-content: center;
+  align-items: center;
+  width: 100%;
+  /* Full width (cover the whole page) */
+  height: 100%;
+  /* Full height (cover the whole page) */
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background-color: rgba(255, 255, 255, 0.85);
+  z-index: 10;
+  cursor: pointer;
+  /* Add a pointer on hover */
+}
+
+.overlay-contents {
+  text-align: center;
+  font-size: 20px;
+  font-weight: bold;
+}
+
+#initial-rent-type {
+  display: flex;
+  justify-content: center;
+}
+
+.icon-pill {
+  cursor: pointer;
 }
