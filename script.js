@@ -565,17 +565,12 @@ document.addEventListener("DOMContentLoaded", () => {
 
       // 초기 렌더링: 전체 목록 표시
       updateMap(allHouses);
+      updateList(allHouses);
 
-      // 초기 좌표로 건대 매물 (광진구)
-      const firstItem = allHouses.find(item => buildFullAddress(item.house).includes("광진구")) || allHouses[0];
-      if (firstItem) {
-        const firstPos = new kakao.maps.LatLng(parseFloat(firstItem.house.lat), parseFloat(firstItem.house.lng));
-        map.setCenter(firstPos);
-        map.setLevel(4);
-
-        // 초기 상세정보 로드
-        loadDetail(firstItem.house.id);
-      }
+      // 초기 좌표: 건대 (요청받은 좌표)
+      const center = new kakao.maps.LatLng(37.543536094587516, 127.07741635877292);
+      map.setCenter(center);
+      map.setLevel(5); // 적절한 줌 레벨 설정
     } catch (err) {
       console.error(err);
     }
