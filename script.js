@@ -807,7 +807,7 @@ function updateMap(list) {
   posById = {};
 
   // 마커 이미지 설정
-  var imageSrc = 'mark3.png',
+  var imageSrc = 'marker.svg',
     imageSize = new kakao.maps.Size(36, 36),
     imageOption = { offset: new kakao.maps.Point(17, 36) };
   var markerImage = new kakao.maps.MarkerImage(imageSrc, imageSize, imageOption);
