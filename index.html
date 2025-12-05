@@ -3,7 +3,7 @@
 
 <head>
   <meta charset="UTF-8" />
-  <title>맺집matjib</title>
+  <title>matjib 라이프스타일 기반 맞춤 지역 검색 서비스</title>
   <link rel="stylesheet" href="style.css" />
   <link href="https://fonts.googleapis.com/css2?family=Bagel+Fat+One&display=swap" rel="stylesheet">
 
@@ -24,6 +24,62 @@
 </head>
 
 <body>
+
+  <div id="overlay">
+    <div class="overlay-contents">
+      <p>matjib에 오신걸 환영합니다!<br>원하는 조건을 선택해주세요</p>
+
+      <div class="section-title">거래유형</div>
+      <div class="chip-row" id="initial-rent-type">
+        <button class="chip active" type="button">전체</button>
+        <button class="chip" type="button">월세</button>
+        <button class="chip" type="button">전세</button>
+      </div>
+
+      <br>
+      <div class="section-title">면적</div>
+      <div class="chip-row" id="initial-area-range">
+        <button class="chip active" type="button">전체</button>
+        <button class="chip" type="button">10평 이하</button>
+        <button class="chip" type="button">10평대</button>
+        <button class="chip" type="button">20평대</button>
+        <button class="chip" type="button">30평대</button>
+        <button class="chip" type="button">40평대</button>
+        <button class="chip" type="button">50평대</button>
+        <button class="chip" type="button">60평 이상</button>
+      </div>
+
+      <br>
+      <div class="section-title">라이프스타일</div>
+      <div class="chip-row" data-multi="true" id="initial-lifestyle">
+        <button class="chip" type="button">산책</button>
+        <button class="chip" type="button">러닝</button>
+        <button class="chip" type="button">반려동물</button>
+        <button class="chip" type="button">헬스</button>
+        <button class="chip" type="button">콘서트</button>
+        <button class="chip" type="button">카페</button>
+        <button class="chip" type="button">등산</button>
+        <button class="chip" type="button">야구</button>
+      </div>
+
+      <br>
+      <div class="section-title">통근 위치</div>
+      <div class="commute-section">
+        <div class="commute-input-row">
+          <input type="text" id="initial-commuteInput" class="commute-input" placeholder="직장 또는 학교" name="commute" />
+          <button id="initial-commuteAddBtn" class="commute-add-btn" type="button">추가</button>
+        </div>
+
+        <div id="initial-commuteList" class="commute-list"></div>
+
+
+      </div>
+      <br>
+      <input id="overlaySearchBtn" class="button-main" type="button" value="맺집 찾기">
+
+      <button class="button-cancel" onclick="overlayOff()">x 안할래요</button>
+    </div>
+  </div>
 
   <header>
     맺집
@@ -175,15 +231,16 @@
 
         <div class="detail-section-title">키워드</div>
         <div class="icon-list">
-          <div class="icon-pill" id="kw-walk">🚶 산책</div>
-          <div class="icon-pill" id="kw-running">🏃 러닝</div>
-          <div class="icon-pill" id="kw-pet">🐶 반려동물</div>
-          <div class="icon-pill" id="kw-gym">💪 헬스</div>
-          <div class="icon-pill" id="kw-concert">🎵 콘서트</div>
-          <div class="icon-pill" id="kw-cafe">☕ 카페</div>
-          <div class="icon-pill" id="kw-hiking">⛰ 등산</div>
-          <div class="icon-pill" id="kw-baseball">⚾ 야구</div>
+          <div class="icon-pill" id="kw-walk" data-tag="walk">🚶 산책</div>
+          <div class="icon-pill" id="kw-running" data-tag="running">🏃 러닝</div>
+          <div class="icon-pill" id="kw-pet" data-tag="pet">🐶 반려동물</div>
+          <div class="icon-pill" id="kw-gym" data-tag="gym">💪 헬스</div>
+          <div class="icon-pill" id="kw-concert" data-tag="concert">🎵 콘서트</div>
+          <div class="icon-pill" id="kw-cafe" data-tag="cafe">☕ 카페</div>
+          <div class="icon-pill" id="kw-hiking" data-tag="hiking">⛰ 등산</div>
+          <div class="icon-pill" id="kw-baseball" data-tag="baseball">⚾ 야구</div>
         </div>
+
 
 
         <!-- 상세정보 -->
@@ -223,29 +280,15 @@
 
         <div class="transport-block">
           <div class="transport-title">지하철</div>
-          <div class="transport-item">
-            <span class="subway-line line2">2호선</span> 구의역 · <b>678m</b>
-          </div>
-          <div class="transport-item">
-            <span class="subway-line line7">7호선</span> 어린이대공원역 · <b>780m</b>
-          </div>
-          <div class="transport-item">
-            <span class="subway-line line2">2호선</span> 강변역 · <b>990m</b>
-          </div>
+          <div id="subwayList"></div>
         </div>
 
-        <div class="transport-block">
-          <div class="transport-title">버스</div>
-          <div class="transport-item">
-            <span class="bus-line green">2222</span> 건대역방면 · <b>228m</b>
-          </div>
-          <div class="transport-item">
-            <span class="bus-line red">102</span> 잠실방면 · <b>350m</b>
-          </div>
-          <div class="transport-item">
-            <span class="bus-line blue">441</span> 강남방면 · <b>535m</b>
-          </div>
-        </div>
+        <!-- 카카오에서 버스정보를 제고하지 않아서 일단 뺌
+      <div class="transport-block">
+        <div class="transport-title">버스</div>
+        <div id="busList"></div>
+      </div>
+      -->
 
         <!-- 목록으로 돌아가기 버튼 (상세 뷰에서 리스트로 복귀용) -->
         <button id="backToListBtn" class="button-main" style="margin-top: 20px; display: none;">목록으로 돌아가기</button>

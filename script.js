@@ -1,9 +1,13 @@
+const WORKER_URL = "https://matjib-ai.th20001026.workers.dev";
 let map;
 let allHouses = []; // Store all house data
 let markers = []; // Store current markers
 let selectedMarker = null;
 let markersById = {};
 let regionMap = {}; // regionId -> 지역 정보
+let posById = {};
+let places;
+
 const LIFESTYLE_META = [
   { key: "walk", label: "산책" },
   { key: "running", label: "러닝" },
@@ -157,7 +161,7 @@ async function getAIRecommendation(filteredList) {
     };
 
     // 3. Cloudflare Worker 호출
-    const WORKER_URL = "https://matjib-ai.th20001026.workers.dev";
+    // 3. Cloudflare Worker 호출
 
     const res = await fetch(WORKER_URL, {
       method: "POST",
@@ -435,160 +439,361 @@ if (userForm) {
 }
 
 
-// ========== 통근 위치 추가 ==========
+//============= overlay용 ===================
 
+// 오버레이 '맺집 찾기' 버튼
+const overlaySearchBtn = document.getElementById("overlaySearchBtn");
+if (overlaySearchBtn) {
+  overlaySearchBtn.addEventListener("click", () => {
+    // 1) 거래유형 단일 선택 동기화
+    syncSingleChip("#initial-rent-type", "#rent-type");
+
+    // 2) 면적 단일 선택 동기화
+    syncSingleChip("#initial-area-range", "#area-range");
+
+    // 3) 라이프스타일 복수 선택 동기화
+    syncMultiChips("#initial-lifestyle", "#lifestyle");
+
+    // 4) 통근 위치 동기화
+    syncCommuteFromOverlay();
+
+    // 오버레이 닫기
+    overlayOff();
+
+    // 6) 메인 폼 submit
+    const form = document.querySelector("#userForm");
+    if (form) {
+      form.dispatchEvent(new Event("submit", { cancelable: true, bubbles: true }));
+    }
+  });
+}
+
+/**
+ * 단일 선택 chip-row 동기화
+ */
+function syncSingleChip(srcRowSelector, dstRowSelector) {
+  const srcActive = document.querySelector(`${srcRowSelector} .chip.active`);
+  if (!srcActive) return;
+
+  const text = srcActive.textContent.trim();
+  const dstRow = document.querySelector(dstRowSelector);
+  if (!dstRow) return;
+
+  dstRow.querySelectorAll(".chip").forEach((chip) => {
+    if (chip.textContent.trim() === text) {
+      chip.classList.add("active");
+    } else {
+      chip.classList.remove("active");
+    }
+  });
+}
+
+/**
+ * 복수 선택 chip-row 동기화
+ */
+function syncMultiChips(srcRowSelector, dstRowSelector) {
+  const srcRow = document.querySelector(srcRowSelector);
+  const dstRow = document.querySelector(dstRowSelector);
+  if (!srcRow || !dstRow) return;
+
+  const srcChips = Array.from(srcRow.querySelectorAll(".chip"));
+  const dstChips = Array.from(dstRow.querySelectorAll(".chip"));
+
+  dstChips.forEach((dstChip) => {
+    const text = dstChip.textContent.trim();
+    const srcChip = srcChips.find(
+      (c) => c.textContent.trim() === text
+    );
+    const isActive = srcChip && srcChip.classList.contains("active");
+    dstChip.classList.toggle("active", !!isActive);
+  });
+}
+
+// ========== 통근 위치 추가==========
+
+// --- 메인 aside용 ---
 const commuteInput = document.getElementById("commuteInput");
 const commuteAddBtn = document.getElementById("commuteAddBtn");
 const commuteList = document.getElementById("commuteList");
-let commuteLocations = []; // 좌표 저장용 배열
 
-function addCommuteItem() {
-  const text = commuteInput.value.trim();
+// --- 오버레이용 ---
+const oCommuteInput = document.getElementById("initial-commuteInput");
+const oCommuteAddBtn = document.getElementById("initial-commuteAddBtn");
+const oCommuteList = document.getElementById("initial-commuteList");
+
+// 통근 좌표/마커 저장용
+let commuteLocations = [];
+
+/**
+ * 공통: 통근 아이템 DOM 생성
+ * withHidden = true  이면 php로 보낼 hidden input도 같이 생성
+ * marker     = 해당 통근 위치 마커 (없으면 null)
+ */
+function createCommuteItemElement(text, withHidden, marker) {
+  const item = document.createElement("div");
+  item.className = "commute-item";
+
+  const nameSpan = document.createElement("span");
+  nameSpan.className = "commute-item-name";
+  nameSpan.textContent = text;
+
+  const removeBtn = document.createElement("button");
+  removeBtn.className = "commute-remove";
+  removeBtn.textContent = "x";
+  removeBtn.addEventListener("click", () => {
+    // UI에서 제거
+    if (item.parentElement) {
+      item.parentElement.removeChild(item);
+    }
+
+    // 마커 지도에서 제거
+    if (marker) {
+      marker.setMap(null);
+    }
+
+    // 배열에서도 제거
+    commuteLocations = commuteLocations.filter(loc => loc.name !== text);
+    console.log("통근 위치 삭제됨:", text);
+  });
+
+  item.appendChild(nameSpan);
+  item.appendChild(removeBtn);
+
+  if (withHidden) {
+    const hidden = document.createElement("input");
+    hidden.type = "hidden";
+    hidden.name = "commuteList[]";  // php에서 받을 이름
+    hidden.value = text;
+    item.appendChild(hidden);
+  }
+
+  return item;
+}
+
+/**
+ * 메인 aside에 통근 위치 추가
+ * - textArg 가 있으면 그 텍스트 사용 (오버레이 동기화용)
+ * - 없으면 commuteInput 의 값을 사용 (사용자 입력)
+ * - Kakao Places 로 좌표 검색해서 마커 찍고 commuteLocations 에 저장
+ */
+function addCommuteItemMain(textArg) {
+  const text = (textArg ?? commuteInput.value.trim());
   if (!text) return;
 
-  // 같은장소-> 추가x
-  const exists = Array.from(commuteList.querySelectorAll(".commute-item-name"))
-    .some((el) => el.textContent === text);
+  // 같은 장소 중복 방지
+  const exists = Array.from(
+    commuteList.querySelectorAll(".commute-item-name")
+  ).some((el) => el.textContent === text);
+
   if (exists) {
-    commuteInput.value = "";
+    if (!textArg) commuteInput.value = "";
     return;
   }
 
-  // 장소 검색 객체 생성 (키워드 검색용)
+  // Kakao Places 객체 (이미 전역 places 쓰고 있으면 그걸 써도 OK)
   const ps = new kakao.maps.services.Places();
 
-  // 키워드로 장소를 검색합니다
-  ps.keywordSearch(text, function (result, status) {
-    // 정상적으로 검색이 완료됐으면 
-    if (status === kakao.maps.services.Status.OK) {
-      const x = result[0].x;
-      const y = result[0].y;
-      const coords = new kakao.maps.LatLng(y, x);
-
-      // 통근 위치 마커 생성 (구분을 위해 다른 이미지나 색상을 쓸 수 있지만 일단 기본 마커 사용)
-      // 매물 마커와 겹칠 수 있으니 z-index를 높이거나 다른 스타일 적용 고려 가능
-      const marker = new kakao.maps.Marker({
-        position: coords,
-        map: map
-      });
-
-      const locationData = {
-        name: text,
-        x: x, // 경도 (lng)
-        y: y, // 위도 (lat)
-        marker: marker // 마커 객체 저장
-      };
-
-      // 좌표 배열에 저장
-      commuteLocations.push(locationData);
-      console.log("통근 위치 추가됨:", locationData);
-
-      // 지도 중심 이동
-      map.setCenter(coords);
-
-      // UI 추가
-      const item = document.createElement("div");
-      item.className = "commute-item";
-
-      const nameSpan = document.createElement("span");
-      nameSpan.className = "commute-item-name";
-      nameSpan.textContent = text; // 입력한 텍스트 그대로 사용
-
-      // 아래 네줄은 php로 넘어갈 유저 요구사항 배열
-      const hidden = document.createElement("input");
-      hidden.type = "hidden";
-      hidden.name = "commuteList[]";   // 중요!
-      hidden.value = text;
-      // 
-
-      const removeBtn = document.createElement("button");
-      removeBtn.className = "commute-remove";
-      removeBtn.textContent = "x";
-      removeBtn.addEventListener("click", () => {
-        commuteList.removeChild(item);
-
-        // 마커 지도에서 제거
-        marker.setMap(null);
-
-        // 배열에서도 삭제
-        commuteLocations = commuteLocations.filter(loc => loc.name !== text);
-        console.log("통근 위치 삭제됨:", text);
-      });
-
-      item.appendChild(nameSpan);
-      item.appendChild(removeBtn);
-      item.appendChild(hidden);  //php넘길것 아이템에 추가
-      commuteList.appendChild(item);
-
-      commuteInput.value = "";
-
-    } else {
+  ps.keywordSearch(text, (result, status) => {
+    if (status !== kakao.maps.services.Status.OK || !result.length) {
       alert("키워드로 장소를 찾을 수 없습니다. 정확한 장소명을 입력해주세요.");
+
+      // 좌표가 없어도 UI/hidden 만 추가하고 싶다면 아래 주석 해제
+      // const item = createCommuteItemElement(text, true, null);
+      // commuteList.appendChild(item);
+
+      if (!textArg) commuteInput.value = "";
+      return;
     }
+
+    const x = result[0].x; // lng
+    const y = result[0].y; // lat
+    const coords = new kakao.maps.LatLng(y, x);
+
+    const marker = new kakao.maps.Marker({
+      position: coords,
+      map: map
+    });
+
+    const locationData = {
+      name: text,
+      x: x,
+      y: y,
+      marker: marker
+    };
+    commuteLocations.push(locationData);
+    console.log("통근 위치 추가됨:", locationData);
+
+    // 지도 중심 이동 (좋으면 유지, 싫으면 주석)
+    map.setCenter(coords);
+
+    const item = createCommuteItemElement(text, true, marker);
+    commuteList.appendChild(item);
+
+    if (!textArg) commuteInput.value = "";
   });
 }
 
-if (commuteAddBtn) {
-  commuteAddBtn.addEventListener("click", addCommuteItem);
-}
-
-// Enter키 눌러도 저장
-if (commuteInput) {
+// 메인 aside: 버튼/엔터 처리
+if (commuteAddBtn && commuteInput) {
+  commuteAddBtn.addEventListener("click", () => addCommuteItemMain());
   commuteInput.addEventListener("keydown", (e) => {
-    if (e.isComposing) return; // IME 입력 중(한글 조합 중)이면 무시
+    if (e.isComposing) return; // 한글 조합중이면 무시
     if (e.key === "Enter") {
       e.preventDefault();
-      addCommuteItem();
+      addCommuteItemMain();
     }
   });
 }
+
+/**
+ * 오버레이에 통근 위치 추가 (좌표/마커 없음, 텍스트만)
+ */
+function addCommuteItemOverlay() {
+  const text = oCommuteInput.value.trim();
+  if (!text) return;
+
+  const exists = Array.from(
+    oCommuteList.querySelectorAll(".commute-item-name")
+  ).some((el) => el.textContent === text);
+
+  if (exists) {
+    oCommuteInput.value = "";
+    return;
+  }
+
+  const item = createCommuteItemElement(text, false, null);
+  oCommuteList.appendChild(item);
+
+  oCommuteInput.value = "";
+}
+
+// 오버레이: 버튼/엔터 처리
+if (oCommuteAddBtn && oCommuteInput) {
+  oCommuteAddBtn.addEventListener("click", addCommuteItemOverlay);
+  oCommuteInput.addEventListener("keydown", (e) => {
+    if (e.isComposing) return;
+    if (e.key === "Enter") {
+      e.preventDefault();
+      addCommuteItemOverlay();
+    }
+  });
+}
+
+/**
+ * 오버레이에 쌓아둔 통근 위치 -> 메인 aside로 동기화
+ * (오버레이에 있는 텍스트를 하나씩 addCommuteItemMain으로 보내서,
+ *  좌표 검색 + 마커 생성까지 같이 수행)
+ */
+function syncCommuteFromOverlay() {
+  if (!oCommuteList || !commuteList) return;
+
+  // 메인 리스트 초기화
+  commuteList.innerHTML = "";
+  commuteLocations.forEach(loc => {
+    if (loc.marker) loc.marker.setMap(null);
+  });
+  commuteLocations = [];
+
+  const names = Array.from(
+    oCommuteList.querySelectorAll(".commute-item-name")
+  ).map((el) => el.textContent);
+
+  names.forEach((name) => addCommuteItemMain(name));
+}
+
 
 
 document.addEventListener("DOMContentLoaded", () => {
-
-  // SDK 로드가 끝난 뒤에 실행되도록
+  // 카카오 SDK가 준비된 뒤에 실행
   kakao.maps.load(async () => {
     const container = document.getElementById("map");
     if (!container) return;
 
+    // 지도 생성
     map = new kakao.maps.Map(container, {
       center: new kakao.maps.LatLng(37.5, 127.0),
       level: 4,
-
     });
 
+    // 장소검색 객체
+    places = new kakao.maps.services.Places();
+
     try {
+      // 1) 행정구역 / 매물 데이터 로드
       await loadRegions();
       const list = await fetch("houses.json").then(res => res.json());
       const processedList = list.map(enrichHouse);
       allHouses = processedList;
 
-      // 초기 렌더링: 전체 목록 표시
-      updateMap(allHouses);
+      // 2) 마커 & 리스트 기본 세팅
+      updateMap(allHouses);   // 이 안에서 markersById 가 채워짐
       updateList(allHouses);
 
-      // 초기 좌표: 건대 (요청받은 좌표)
-      const center = new kakao.maps.LatLng(37.543536094587516, 127.07741635877292);
-      map.setCenter(center);
-      map.setLevel(5); // 적절한 줌 레벨 설정
+      // 3) URL에서 focus 파라미터 읽기
+      const params = new URLSearchParams(window.location.search);
+      const focusStr = params.get("focus");
+      const focusId = focusStr ? parseInt(focusStr, 10) : null;
+
+      if (focusId && markersById[focusId]) {
+        // ===== 태그 페이지에서 넘어온 경우: 특정 매물 포커스 =====
+        console.log("focusId:", focusId);
+
+        // 상세 정보 표시
+        loadDetail(focusId);
+
+        // 뷰 전환: 상세만 보이기
+        const listView = document.getElementById("list-view");
+        const detailView = document.getElementById("detail-view");
+        if (detailView) detailView.style.display = "block";
+        if (listView) listView.style.display = "none";
+
+        // 목록으로 돌아가기 버튼 표시
+        const backBtn = document.getElementById("backToListBtn");
+        if (backBtn) backBtn.style.display = "block";
+
+        // 지도 중심을 해당 매물로 이동
+        const marker = markersById[focusId];
+        if (marker) {
+          marker.setMap(map); // 혹시 숨겨져 있을 경우를 대비
+          map.setCenter(marker.getPosition());
+          map.setLevel(4);
+        }
+
+      } else {
+        // ===== 일반 접속(초기 화면) =====
+        // 건대 주변 기본 중심
+        const center = new kakao.maps.LatLng(
+          37.543536094587516,
+          127.07741635877292
+        );
+        map.setCenter(center);
+        map.setLevel(5);
+
+        // 처음 들어온 경우에만 취향 입력 오버레이 표시 (세션당 1회)
+        if (!sessionStorage.getItem("overlayShown")) {
+          overlayOn();
+          sessionStorage.setItem("overlayShown", "true");
+        }
+      }
+
     } catch (err) {
       console.error(err);
     }
-
   });
 
-  // 목록으로 돌아가기 버튼 이벤트
+  // 목록으로 돌아가기 버튼
   const backBtn = document.getElementById("backToListBtn");
   if (backBtn) {
     backBtn.addEventListener("click", () => {
-      document.getElementById("detail-view").style.display = "none";
-      document.getElementById("list-view").style.display = "flex";
+      const detailView = document.getElementById("detail-view");
+      const listView = document.getElementById("list-view");
+      if (detailView) detailView.style.display = "none";
+      if (listView) listView.style.display = "flex";
 
       // 모든 마커 다시 보이기
       Object.values(markersById).forEach(m => m.setMap(map));
     });
   }
-
 });
 
 function updateMap(list) {
@@ -598,8 +803,11 @@ function updateMap(list) {
   markersById = {};
   selectedMarker = null;
 
-  // 마커 이미지 설정 (모든 검색 결과에 적용)
-  var imageSrc = 'mark3.png',
+  // ★ 지하철 계산용 좌표도 초기화
+  posById = {};
+
+  // 마커 이미지 설정
+  var imageSrc = 'marker.svg',
     imageSize = new kakao.maps.Size(36, 36),
     imageOption = { offset: new kakao.maps.Point(17, 36) };
   var markerImage = new kakao.maps.MarkerImage(imageSrc, imageSize, imageOption);
@@ -609,14 +817,15 @@ function updateMap(list) {
     const h = item.house;
     const pos = new kakao.maps.LatLng(parseFloat(h.lat), parseFloat(h.lng));
 
-    // 마커 이미지 적용
     const marker = new kakao.maps.Marker({
       position: pos,
       map: map,
       image: markerImage
     });
 
+    // ★ 여기서 id -> 좌표를 저장
     markersById[h.id] = marker;
+    posById[h.id] = pos;
 
     kakao.maps.event.addListener(marker, "click", () => {
       loadDetail(h.id);
@@ -625,6 +834,7 @@ function updateMap(list) {
     markers.push(marker);
   });
 }
+
 
 function updateList(list, aiRecommendations = []) {
   const listContent = document.getElementById("list-content");
@@ -729,7 +939,7 @@ function loadDetail(id) {
   // Find data from global array instead of fetching
   const item = allHouses.find(i => i.house.id == id);
   if (item) {
-    renderDetail(item.house, item.lifestyle);
+    renderDetail(item.house, item.lifestyle, id);
 
     // 상세 뷰 보이기, 리스트 숨기기
     const listView = document.getElementById("list-view");
@@ -759,7 +969,7 @@ function loadDetail(id) {
   }
 }
 
-function renderDetail(h, life) {
+function renderDetail(h, life, id) {
   // 가격
   const price = (h.rent_type === "전세")
     ? `전세 ${num(h.deposit)}`
@@ -790,6 +1000,11 @@ function renderDetail(h, life) {
   // 키워드 보이기 및 숨기기
   renderKeywords(life);
 
+  updateNearestSubway(id);
+  //updateNearestBus(id);
+
+  renderPhotos(h, id);
+
 }
 
 function renderKeywords(life) {
@@ -817,3 +1032,160 @@ function setText(id, text) {
 function num(v) { return (+v || 0).toLocaleString("ko-KR"); }
 
 function dateDot(s) { return String(s || "").replaceAll("-", "."); }
+
+function overlayOn() {
+  document.getElementById("overlay").style.display = "flex";
+}
+
+function overlayOff() {
+  document.getElementById("overlay").style.display = "none";
+}
+
+// ================== 최단거리 지하철 3개 표시 ==================
+function updateNearestSubway(houseId) {
+  if (!places) return;
+
+  const pos = posById[houseId];
+  const listEl = document.getElementById("subwayList");
+  if (!pos || !listEl) return;
+
+  listEl.innerHTML = '<div class="transport-item">검색중...</div>';
+
+  places.categorySearch(
+    "SW8",
+    function (data, status, pagination) {
+      if (status !== kakao.maps.services.Status.OK || !data.length) {
+        listEl.innerHTML = '<div class="transport-item">주변 지하철역 정보 없음</div>';
+        return;
+      }
+
+      const top3 = data.slice(0, 3);
+      listEl.innerHTML = "";
+
+      top3.forEach(place => {
+        const dist = place.distance
+          ? Number(place.distance).toLocaleString("ko-KR")
+          : "?";
+
+        const lineInfo = getLineInfo(place);
+
+        const item = document.createElement("div");
+        item.className = "transport-item";
+
+        item.innerHTML = `
+          ${lineInfo ? `<span class="subway-line ${lineInfo.className}">${lineInfo.label}</span>` : ""}
+          ${place.place_name} · <b>${dist}m</b>
+        `;
+        listEl.appendChild(item);
+      });
+    },
+    {
+      location: pos,
+      radius: 1000,
+      sort: kakao.maps.services.SortBy.DISTANCE
+    }
+  );
+}
+
+// ================== 노선 색상 매핑 ==================
+function getLineInfo(place) {
+  const cat = place.category_name || "";
+
+  if (cat.includes("1호선")) return { label: "1호선", className: "line1" };
+  if (cat.includes("2호선")) return { label: "2호선", className: "line2" };
+  if (cat.includes("3호선")) return { label: "3호선", className: "line3" };
+  if (cat.includes("4호선")) return { label: "4호선", className: "line4" };
+  if (cat.includes("5호선")) return { label: "5호선", className: "line5" };
+  if (cat.includes("6호선")) return { label: "6호선", className: "line6" };
+  if (cat.includes("7호선")) return { label: "7호선", className: "line7" };
+  if (cat.includes("8호선")) return { label: "8호선", className: "line8" };
+  if (cat.includes("9호선")) return { label: "9호선", className: "line9" };
+
+  if (cat.includes("신분당선")) return { label: "신분당선", className: "lineSBD" };
+  if (cat.includes("수인분당선")) return { label: "수인분당선", className: "lineSBDG" };
+  if (cat.includes("경의중앙선")) return { label: "경의중앙선", className: "lineGJ" };
+  if (cat.includes("공항철도")) return { label: "공항철도", className: "lineAREX" };
+  if (cat.includes("경춘선")) return { label: "경춘선", className: "lineGC" };
+  if (cat.includes("의정부")) return { label: "의정부선", className: "lineUL" };
+  if (cat.includes("경강선")) return { label: "경강선", className: "lineKG" };
+
+  return null;
+}
+
+function updateNearestBus(houseId) {
+  if (!places) return;
+
+  const pos = posById[houseId];
+  const listEl = document.getElementById("busList");
+  if (!pos || !listEl) return;
+
+  listEl.innerHTML = '<div class="transport-item">검색중...</div>';
+
+  places.categorySearch(
+    "BS4",
+    function (data, status, pagination) {
+      if (status !== kakao.maps.services.Status.OK || !data.length) {
+        listEl.innerHTML = '<div class="transport-item">주변 버스 정류장 정보 없음</div>';
+        return;
+      }
+
+      const top3 = data.slice(0, 3);
+      listEl.innerHTML = "";
+
+      top3.forEach(stop => {
+        const dist = stop.distance
+          ? Number(stop.distance).toLocaleString("ko-KR")
+          : "?";
+
+        const item = document.createElement("div");
+        item.className = "transport-item";
+
+        item.innerHTML = `
+          🚌 ${stop.place_name} · <b>${dist}m</b>
+        `;
+        listEl.appendChild(item);
+      });
+    },
+    {
+      location: pos,
+      radius: 1000,
+      sort: kakao.maps.services.SortBy.DISTANCE
+    }
+  );
+}
+function renderPhotos(h, id) {
+  const p1 = document.getElementById("photo1");
+  const p2 = document.getElementById("photo2");
+  const p3 = document.getElementById("photo3");
+  if (!p1 || !p2 || !p3) return;
+
+  [p1, p2, p3].forEach(el => {
+    el.style.backgroundImage = "none";
+  });
+
+  fetch(`${WORKER_URL}/unsplash?id=${id}`)
+    .then(res => res.json())
+    .then(urls => {
+      if (!Array.isArray(urls) || urls.length === 0) return;
+
+      const targets = [p1, p2, p3];
+      targets.forEach((el, i) => {
+        const url = urls[i];
+        if (url) {
+          el.style.backgroundImage = `url('${url}')`;
+        }
+      });
+    })
+    .catch(err => {
+      console.error("Unsplash error:", err);
+    });
+}
+
+// ========== 右側キーワードタグをクリックしたら別ページへ ==========
+document.querySelectorAll(".icon-pill").forEach((pill) => {
+  pill.addEventListener("click", () => {
+    const tag = pill.dataset.tag;
+    if (!tag) return;
+    window.location.href = `tag_search.html?tag=${encodeURIComponent(tag)}`;
+  });
+});
