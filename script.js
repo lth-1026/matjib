@@ -769,8 +769,11 @@ document.addEventListener("DOMContentLoaded", () => {
         map.setCenter(center);
         map.setLevel(5);
 
-        // 처음 들어온 경우에만 취향 입력 오버레이 표시
-        overlayOn();
+        // 처음 들어온 경우에만 취향 입력 오버레이 표시 (세션당 1회)
+        if (!sessionStorage.getItem("overlayShown")) {
+          overlayOn();
+          sessionStorage.setItem("overlayShown", "true");
+        }
       }
 
     } catch (err) {
