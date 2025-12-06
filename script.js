@@ -382,6 +382,19 @@ setupRangeSync("depositMin", "depositMax", "inputDepositMin", "inputDepositMax",
 // 월세 (0~2000)
 setupRangeSync("rentMin", "rentMax", "inputRentMin", "inputRentMax", "rent-slider");
 
+// [Fix] Prevent Enter key in price inputs from submitting form
+["inputDepositMin", "inputDepositMax", "inputRentMin", "inputRentMax"].forEach(id => {
+  const el = document.getElementById(id);
+  if (el) {
+    el.addEventListener("keydown", (e) => {
+      if (e.key === "Enter") {
+        e.preventDefault(); // Stop form submit
+        el.blur(); // Trigger change event and remove focus
+      }
+    });
+  }
+});
+
 //=================선택 버튼 처리=======================
 document.querySelectorAll(".chip-row").forEach((row) => {
   row.addEventListener("click", (e) => {

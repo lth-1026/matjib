@@ -36,10 +36,10 @@ CREATE TABLE `house_lifestyle` (
   `running` tinyint(1) NOT NULL DEFAULT '0',
   `pet` tinyint(1) NOT NULL DEFAULT '0',
   `gym` tinyint(1) NOT NULL DEFAULT '0',
-  `concert` tinyint(1) NOT NULL DEFAULT '0',
+  `performance` tinyint(1) NOT NULL DEFAULT '0',
   `cafe` tinyint(1) NOT NULL DEFAULT '0',
-  `hiking` tinyint(1) NOT NULL DEFAULT '0',
-  `baseball` tinyint(1) NOT NULL DEFAULT '0',
+  `movie` tinyint(1) NOT NULL DEFAULT '0',
+  `sports` tinyint(1) NOT NULL DEFAULT '0',
   PRIMARY KEY (`house_id`),
   CONSTRAINT `house_lifestyle_ibfk_1` FOREIGN KEY (`house_id`) REFERENCES `houses` (`id`) ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
