@@ -223,8 +223,12 @@ input[type="range"] {
   width: 350px;
   background: white;
   border-left: 1px solid #e0c7aa;
-  padding: 0px 12px 12px 12px;
+  padding: 0px 12px;
   overflow-y: auto;
+}
+
+#detail-view {
+  padding: 12px 0;
 }
 
 .thumbs {
