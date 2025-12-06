@@ -596,19 +596,43 @@ input[type="range"] {
   align-items: center;
 }
 
+/* AI Reason Button - Flashy Animation (Toned Down) */
 .ai-reason-btn {
-  font-size: 11px;
-  padding: 4px 8px;
-  background-color: #875c44;
+  font-size: 12px;
+  padding: 6px 14px;
+  /* Gradient background: Muted Terra Cotta -> Muted Raspberry */
+  background: linear-gradient(90deg, #DA7C67 0%, #C55D7C 51%, #DA7C67 100%);
+  background-size: 200% auto;
   color: white;
   border: none;
-  border-radius: 12px;
+  border-radius: 20px;
   cursor: pointer;
-  transition: background-color 0.2s;
+  font-weight: 700;
+  box-shadow: 0 0 10px rgba(197, 93, 124, 0.4);
+  transition: 0.5s;
+  animation: pulse-glow 2s infinite;
 }
 
 .ai-reason-btn:hover {
-  background-color: #6d4a36;
+  background-position: right center;
+  /* change the direction of the change here */
+  color: #fff;
+  text-decoration: none;
+  transform: scale(1.05);
+}
+
+@keyframes pulse-glow {
+  0% {
+    box-shadow: 0 0 0 0 rgba(197, 93, 124, 0.6);
+  }
+
+  70% {
+    box-shadow: 0 0 0 8px rgba(197, 93, 124, 0);
+  }
+
+  100% {
+    box-shadow: 0 0 0 0 rgba(197, 93, 124, 0);
+  }
 }
 
 .list-item {
