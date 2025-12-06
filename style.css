@@ -873,3 +873,63 @@ input[type="range"] {
   font-weight: bold;
   letter-spacing: 1px;
 }
+
+/* Tooltip Styles */
+.tooltip-container {
+  display: inline-block;
+  position: relative;
+  vertical-align: middle;
+  margin-left: 4px;
+}
+
+.help-icon {
+  display: inline-flex;
+  justify-content: center;
+  align-items: center;
+  width: 18px;
+  height: 18px;
+  background-color: #875c44;
+  color: #fff;
+  border-radius: 50%;
+  font-size: 12px;
+  font-weight: bold;
+  cursor: help;
+}
+
+.tooltip-msg {
+  visibility: hidden;
+  opacity: 0;
+  position: absolute;
+  bottom: 130%;
+  left: 50%;
+  transform: translateX(-50%);
+  background-color: rgba(93, 64, 55, 0.95);
+  color: #fff;
+  text-align: center;
+  padding: 8px 12px;
+  border-radius: 8px;
+  font-size: 11px;
+  white-space: nowrap;
+  z-index: 20;
+  font-weight: normal;
+  transition: opacity 0.2s;
+  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+}
+
+/* Arrow for Tooltip */
+.tooltip-msg::after {
+  content: "";
+  position: absolute;
+  top: 100%;
+  left: 50%;
+  margin-left: -5px;
+  border-width: 5px;
+  border-style: solid;
+  border-color: rgba(93, 64, 55, 0.95) transparent transparent transparent;
+}
+
+.tooltip-container:hover .tooltip-msg,
+.tooltip-container:active .tooltip-msg {
+  visibility: visible;
+  opacity: 1;
+}
