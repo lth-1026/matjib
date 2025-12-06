@@ -230,9 +230,73 @@ function getDistanceFromLatLonInKm(lat1, lon1, lat2, lon2) {
   return d;
 }
 
+// ========== Rent Type Change Listener ==========
+document.addEventListener("DOMContentLoaded", () => {
+  const rentTypeRow = document.querySelector("#rent-type");
+  if (rentTypeRow) {
+    rentTypeRow.addEventListener("click", (e) => {
+      if (e.target.classList.contains("chip")) {
+        // Wait for class update
+        setTimeout(updateSlidersBasedOnRentType, 0);
+      }
+    });
+  }
+});
+
+function updateSlidersBasedOnRentType() {
+  const activeChip = document.querySelector("#rent-type .chip.active");
+  const type = activeChip ? activeChip.textContent.trim() : "전체";
+
+  let targetList = allHouses;
+  if (type !== "전체") {
+    targetList = allHouses.filter(item => item.house.rent_type === type);
+  }
+  adjustRangeFromData(targetList);
+}
+
 function deg2rad(deg) {
   return deg * (Math.PI / 180);
 }
+
+// ========== slider range dynamic update ==========
+function adjustRangeFromData(list) {
+  if (!list || list.length === 0) return;
+
+  const deposits = list.map(item => item.house.deposit);
+  const rents = list.map(item => item.house.rent);
+
+  const minDep = Math.min(...deposits);
+  const maxDep = Math.max(...deposits);
+  const minRent = Math.min(...rents);
+  const maxRent = Math.max(...rents);
+
+  updateSliderRange("deposit", minDep, maxDep);
+  updateSliderRange("rent", minRent, maxRent);
+}
+
+function updateSliderRange(prefix, minVal, maxVal) {
+  const minSlider = document.getElementById(prefix + "Min");
+  const maxSlider = document.getElementById(prefix + "Max");
+
+  // Update inputs if they exist (though inputs are synced by onSliderChange generally, we can set them)
+  // Actually setupRangeSync handles logic. We just update properties and trigger event.
+
+  if (minSlider && maxSlider) {
+    minSlider.min = minVal;
+    minSlider.max = maxVal;
+    maxSlider.min = minVal;
+    maxSlider.max = maxVal;
+
+    // Reset current values to full range
+    minSlider.value = minVal;
+    maxSlider.value = maxVal;
+
+    // Trigger input event to update color track and text inputs
+    minSlider.dispatchEvent(new Event("input"));
+    maxSlider.dispatchEvent(new Event("input"));
+  }
+}
+
 // ========== 슬라이더 & Input 동기화 (보증금 & 월세) ==========
 
 function setupRangeSync(minSliderId, maxSliderId, minInputId, maxInputId, trackId) {
@@ -244,20 +308,23 @@ function setupRangeSync(minSliderId, maxSliderId, minInputId, maxInputId, trackI
 
   if (!minSlider || !maxSlider || !minInput || !maxInput || !track) return;
 
-  const min = parseInt(minSlider.min);
-  const max = parseInt(minSlider.max);
-
   function updateTrack() {
+    const min = parseInt(minSlider.min);
+    const max = parseInt(minSlider.max);
     const minVal = parseInt(minSlider.value);
     const maxVal = parseInt(maxSlider.value);
-    const minPercent = ((minVal - min) / (max - min)) * 100;
-    const maxPercent = ((maxVal - min) / (max - min)) * 100;
+    // Avoid division by zero
+    const range = max - min || 1;
+    const minPercent = ((minVal - min) / range) * 100;
+    const maxPercent = ((maxVal - min) / range) * 100;
 
     // Use theme colors: #e4d9c2 for empty, #875c44 for filled
     track.style.background = `linear-gradient(to right, #e4d9c2 ${minPercent}%, #875c44 ${minPercent}%, #875c44 ${maxPercent}%, #e4d9c2 ${maxPercent}%)`;
   }
 
   function onSliderChange() {
+    const min = parseInt(minSlider.min);
+    const max = parseInt(minSlider.max);
     let minVal = parseInt(minSlider.value);
     let maxVal = parseInt(maxSlider.value);
 
@@ -278,6 +345,8 @@ function setupRangeSync(minSliderId, maxSliderId, minInputId, maxInputId, trackI
   }
 
   function onInputChange() {
+    const min = parseInt(minSlider.min);
+    const max = parseInt(minSlider.max);
     let minVal = parseInt(minInput.value);
     let maxVal = parseInt(maxInput.value);
 
@@ -724,6 +793,9 @@ document.addEventListener("DOMContentLoaded", () => {
       const list = await fetch("houses.json").then(res => res.json());
       const processedList = list.map(enrichHouse);
       allHouses = processedList;
+
+      // 1-1) 데이터 기반 범위 재설정 function call
+      updateSlidersBasedOnRentType();
 
       // 2) 마커 & 리스트 기본 세팅
       updateMap(allHouses);   // 이 안에서 markersById 가 채워짐
