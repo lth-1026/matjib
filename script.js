@@ -13,10 +13,10 @@ const LIFESTYLE_META = [
   { key: "running", label: "러닝" },
   { key: "pet", label: "반려동물" },
   { key: "gym", label: "헬스" },
-  { key: "concert", label: "콘서트" },
+  { key: "performance", label: "공연" },
   { key: "cafe", label: "카페" },
-  { key: "hiking", label: "등산" },
-  { key: "baseball", label: "야구" }
+  { key: "movie", label: "영화" },
+  { key: "sports", label: "스포츠 관람" }
 ];
 
 function getRegionInfoById(id) {
@@ -92,12 +92,10 @@ async function getAIRecommendation(filteredList) {
   }
 
   // 로딩 표시 (버튼)
-  const searchBtn = document.getElementById("searchBtn");
-  const originalBtnText = searchBtn ? searchBtn.innerHTML : "맺집 찾기";
-
-  if (searchBtn) {
-    searchBtn.disabled = true;
-    searchBtn.innerHTML = '<span class="button-spinner"></span> 분석 중...';
+  // 로딩 표시 (전체 화면)
+  const loadingOverlay = document.getElementById("loading-overlay");
+  if (loadingOverlay) {
+    loadingOverlay.style.display = "flex";
   }
 
   try {
@@ -211,10 +209,9 @@ async function getAIRecommendation(filteredList) {
     console.error(e);
     // alert("AI 추천 중 오류가 발생했습니다: " + e.message);
   } finally {
-    // 로딩 숨김 및 버튼 복구
-    if (searchBtn) {
-      searchBtn.disabled = false;
-      searchBtn.innerHTML = originalBtnText;
+    // 로딩 숨김
+    if (loadingOverlay) {
+      loadingOverlay.style.display = "none";
     }
   }
 }
@@ -233,103 +230,170 @@ function getDistanceFromLatLonInKm(lat1, lon1, lat2, lon2) {
   return d;
 }
 
+// ========== Rent Type Change Listener ==========
+document.addEventListener("DOMContentLoaded", () => {
+  const rentTypeRow = document.querySelector("#rent-type");
+  if (rentTypeRow) {
+    rentTypeRow.addEventListener("click", (e) => {
+      if (e.target.classList.contains("chip")) {
+        // Wait for class update
+        setTimeout(updateSlidersBasedOnRentType, 0);
+      }
+    });
+  }
+});
+
+function updateSlidersBasedOnRentType() {
+  const activeChip = document.querySelector("#rent-type .chip.active");
+  const type = activeChip ? activeChip.textContent.trim() : "전체";
+
+  let targetList = allHouses;
+  if (type !== "전체") {
+    targetList = allHouses.filter(item => item.house.rent_type === type);
+  }
+  adjustRangeFromData(targetList);
+}
+
 function deg2rad(deg) {
   return deg * (Math.PI / 180);
 }
-const minInput = document.getElementById("depositMin");
-const maxInput = document.getElementById("depositMax");
-const depositLabel = document.getElementById("depositLabel");
 
-function updateDepositRange() {
-  // min <= max になるように調整
-  if (parseInt(minInput.value) > parseInt(maxInput.value)) {
-    const tmp = minInput.value;
-    minInput.value = maxInput.value;
-    maxInput.value = tmp;
+// ========== slider range dynamic update ==========
+function adjustRangeFromData(list) {
+  if (!list || list.length === 0) return;
+
+  const deposits = list.map(item => item.house.deposit);
+  const rents = list.map(item => item.house.rent);
+
+  const minDep = Math.min(...deposits);
+  const maxDep = Math.max(...deposits);
+  const minRent = Math.min(...rents);
+  const maxRent = Math.max(...rents);
+
+  updateSliderRange("deposit", minDep, maxDep);
+  updateSliderRange("rent", minRent, maxRent);
+}
+
+function updateSliderRange(prefix, minVal, maxVal) {
+  const minSlider = document.getElementById(prefix + "Min");
+  const maxSlider = document.getElementById(prefix + "Max");
+
+  // Update inputs if they exist (though inputs are synced by onSliderChange generally, we can set them)
+  // Actually setupRangeSync handles logic. We just update properties and trigger event.
+
+  if (minSlider && maxSlider) {
+    minSlider.min = minVal;
+    minSlider.max = maxVal;
+    maxSlider.min = minVal;
+    maxSlider.max = maxVal;
+
+    // Reset current values to full range
+    minSlider.value = minVal;
+    maxSlider.value = maxVal;
+
+    // Trigger input event to update color track and text inputs
+    minSlider.dispatchEvent(new Event("input"));
+    maxSlider.dispatchEvent(new Event("input"));
+  }
+}
+
+// ========== 슬라이더 & Input 동기화 (보증금 & 월세) ==========
+
+function setupRangeSync(minSliderId, maxSliderId, minInputId, maxInputId, trackId) {
+  const minSlider = document.getElementById(minSliderId);
+  const maxSlider = document.getElementById(maxSliderId);
+  const minInput = document.getElementById(minInputId);
+  const maxInput = document.getElementById(maxInputId);
+  const track = document.getElementById(trackId);
+
+  if (!minSlider || !maxSlider || !minInput || !maxInput || !track) return;
+
+  function updateTrack() {
+    const min = parseInt(minSlider.min);
+    const max = parseInt(minSlider.max);
+    const minVal = parseInt(minSlider.value);
+    const maxVal = parseInt(maxSlider.value);
+    // Avoid division by zero
+    const range = max - min || 1;
+    const minPercent = ((minVal - min) / range) * 100;
+    const maxPercent = ((maxVal - min) / range) * 100;
+
+    // Use theme colors: #e4d9c2 for empty, #875c44 for filled
+    track.style.background = `linear-gradient(to right, #e4d9c2 ${minPercent}%, #875c44 ${minPercent}%, #875c44 ${maxPercent}%, #e4d9c2 ${maxPercent}%)`;
   }
 
-  const minVal = parseInt(minInput.value);
-  const maxVal = parseInt(maxInput.value);
+  function onSliderChange() {
+    const min = parseInt(minSlider.min);
+    const max = parseInt(minSlider.max);
+    let minVal = parseInt(minSlider.value);
+    let maxVal = parseInt(maxSlider.value);
 
-  depositLabel.textContent = `(${minVal}만 ~ ${maxVal}만)`;
-  updateTrack();
-}
+    // Prevent cross over
+    if (minVal > maxVal) {
+      if (this === minSlider) {
+        minSlider.value = maxVal;
+        minVal = maxVal;
+      } else {
+        maxSlider.value = minVal;
+        maxVal = minVal;
+      }
+    }
 
-function updateTrack() {
-  const min = parseInt(minInput.min);
-  const max = parseInt(minInput.max);
-
-  const minVal = parseInt(minInput.value);
-  const maxVal = parseInt(maxInput.value);
-
-  const minPercent = ((minVal - min) / (max - min)) * 100;
-  const maxPercent = ((maxVal - min) / (max - min)) * 100;
-
-  const track = document.getElementById("dep-slider");
-  track.style.background = `
-    linear-gradient(
-      to right,
-      #ddd ${minPercent}%,
-      #875c44 ${minPercent}%,
-      #875c44 ${maxPercent}%,
-      #ddd ${maxPercent}%
-    )
-  `;
-}
-
-if (minInput && maxInput) {
-  minInput.addEventListener("input", updateDepositRange);
-  maxInput.addEventListener("input", updateDepositRange);
-  updateDepositRange(); // 初期表示
-}
-
-// ==========월세 슬라이더 입력 처리==========
-const r_minInput = document.getElementById("rentMin");
-const r_maxInput = document.getElementById("rentMax");
-const rentLabel = document.getElementById("rentLabel");
-
-function updateRentRange() {
-  // min <= max になるように調整
-  if (parseInt(r_minInput.value) > parseInt(r_maxInput.value)) {
-    const tmp = r_minInput.value;
-    r_minInput.value = r_maxInput.value;
-    r_maxInput.value = tmp;
+    minInput.value = minVal;
+    maxInput.value = maxVal;
+    updateTrack();
   }
 
-  const minVal = parseInt(r_minInput.value);
-  const maxVal = parseInt(r_maxInput.value);
+  function onInputChange() {
+    const min = parseInt(minSlider.min);
+    const max = parseInt(minSlider.max);
+    let minVal = parseInt(minInput.value);
+    let maxVal = parseInt(maxInput.value);
 
-  rentLabel.textContent = `(${minVal}만 ~ ${maxVal}만)`;
-  updateRentTrack();
+    // Validate
+    if (minVal < min) minVal = min;
+    if (maxVal > max) maxVal = max;
+    if (minVal > maxVal) {
+      // Just clamp without moving the other for simplicity in text input, 
+      // or swap? Let's minimal clamp.
+      if (this === minInput) minVal = maxVal;
+      else maxVal = minVal;
+    }
+
+    minSlider.value = minVal;
+    maxSlider.value = maxVal;
+    updateTrack();
+  }
+
+  minSlider.addEventListener("input", onSliderChange);
+  maxSlider.addEventListener("input", onSliderChange);
+  minInput.addEventListener("input", onInputChange); // Update on typing
+  minInput.addEventListener("change", onInputChange); // Confirm on enter/blur
+  maxInput.addEventListener("input", onInputChange);
+  maxInput.addEventListener("change", onInputChange);
+
+  // Trigger initial update from INPUT values (which are set to full range in HTML)
+  onInputChange();
 }
 
-function updateRentTrack() {
-  const min = parseInt(r_minInput.min);
-  const max = parseInt(r_minInput.max);
+// 보증금 (0~5000)
+setupRangeSync("depositMin", "depositMax", "inputDepositMin", "inputDepositMax", "dep-slider");
 
-  const minVal = parseInt(r_minInput.value);
-  const maxVal = parseInt(r_maxInput.value);
+// 월세 (0~2000)
+setupRangeSync("rentMin", "rentMax", "inputRentMin", "inputRentMax", "rent-slider");
 
-  const minPercent = ((minVal - min) / (max - min)) * 100;
-  const maxPercent = ((maxVal - min) / (max - min)) * 100;
-
-  const track = document.getElementById("rent-slider");
-  track.style.background = `
-    linear-gradient(
-      to right,
-      #ddd ${minPercent}%,
-      #875c44 ${minPercent}%,
-      #875c44 ${maxPercent}%,
-      #ddd ${maxPercent}%
-    )
-  `;
-}
-
-if (r_minInput && r_maxInput) {
-  r_minInput.addEventListener("input", updateRentRange);
-  r_maxInput.addEventListener("input", updateRentRange);
-  updateRentRange(); // 初期表示
-}
+// [Fix] Prevent Enter key in price inputs from submitting form
+["inputDepositMin", "inputDepositMax", "inputRentMin", "inputRentMax"].forEach(id => {
+  const el = document.getElementById(id);
+  if (el) {
+    el.addEventListener("keydown", (e) => {
+      if (e.key === "Enter") {
+        e.preventDefault(); // Stop form submit
+        el.blur(); // Trigger change event and remove focus
+      }
+    });
+  }
+});
 
 //=================선택 버튼 처리=======================
 document.querySelectorAll(".chip-row").forEach((row) => {
@@ -340,7 +404,18 @@ document.querySelectorAll(".chip-row").forEach((row) => {
 
     if (isMulti) {
       // 복수선택 가능
-      e.target.classList.toggle("active");
+      const text = e.target.textContent.trim();
+      if (text === "전체") {
+        // "전체" 클릭 시: 나머지 모두 해제하고 본인만 활성화
+        row.querySelectorAll(".chip").forEach((c) => c.classList.remove("active"));
+        e.target.classList.add("active");
+      } else {
+        // 일반 옵션 클릭 시: "전체"가 켜져 있다면 끄기
+        e.target.classList.toggle("active");
+        // "전체" 칩 찾아서 끄기
+        const allChip = Array.from(row.querySelectorAll(".chip")).find(c => c.textContent.trim() === "전체");
+        if (allChip) allChip.classList.remove("active");
+      }
     } else {
       // 단일선택
       row.querySelectorAll(".chip").forEach((c) => c.classList.remove("active"));
@@ -367,8 +442,9 @@ if (userForm) {
 
     const includeFee = document.getElementById("includeFee").checked;
 
-    const areaChip = document.querySelector("#area-range .chip.active");
-    const areaText = areaChip ? areaChip.textContent : "전체";
+    const areaChips = document.querySelectorAll("#area-range .chip.active");
+    const areaTexts = Array.from(areaChips).map(c => c.textContent.trim());
+    const isAreaAll = areaTexts.includes("전체") || areaTexts.length === 0;
 
     // 라이프스타일 활성화 여부 확인
     const lifestyleSelections = getLifestyleSelections();
@@ -397,15 +473,21 @@ if (userForm) {
       if (checkRent < rentMin || checkRent > rentMax) return false;
 
       // (4) 면적 (평수 변환)
+      // (4) 면적 (평수 변환)
       const pyeong = h.area_m2 / 3.3058;
-      if (areaText !== "전체") {
-        if (areaText === "10평 이하" && pyeong > 10) return false;
-        if (areaText === "10평대" && (pyeong < 10 || pyeong >= 20)) return false;
-        if (areaText === "20평대" && (pyeong < 20 || pyeong >= 30)) return false;
-        if (areaText === "30평대" && (pyeong < 30 || pyeong >= 40)) return false;
-        if (areaText === "40평대" && (pyeong < 40 || pyeong >= 50)) return false;
-        if (areaText === "50평대" && (pyeong < 50 || pyeong >= 60)) return false;
-        if (areaText === "60평 이상" && pyeong < 60) return false;
+
+      if (!isAreaAll) {
+        let areaMatch = false;
+        for (const text of areaTexts) {
+          if (text === "10평 이하" && pyeong <= 10) areaMatch = true;
+          else if (text === "10평대" && pyeong >= 10 && pyeong < 20) areaMatch = true;
+          else if (text === "20평대" && pyeong >= 20 && pyeong < 30) areaMatch = true;
+          else if (text === "30평대" && pyeong >= 30 && pyeong < 40) areaMatch = true;
+          else if (text === "40평대" && pyeong >= 40 && pyeong < 50) areaMatch = true;
+          else if (text === "50평대" && pyeong >= 50 && pyeong < 60) areaMatch = true;
+          else if (text === "60평 이상" && pyeong >= 60) areaMatch = true;
+        }
+        if (!areaMatch) return false;
       }
 
       // (5) 라이프스타일 (AND 조건: 선택된 모든 조건 만족해야 함)
@@ -725,6 +807,9 @@ document.addEventListener("DOMContentLoaded", () => {
       const processedList = list.map(enrichHouse);
       allHouses = processedList;
 
+      // 1-1) 데이터 기반 범위 재설정 function call
+      updateSlidersBasedOnRentType();
+
       // 2) 마커 & 리스트 기본 세팅
       updateMap(allHouses);   // 이 안에서 markersById 가 채워짐
       updateList(allHouses);
@@ -1012,10 +1097,10 @@ function renderKeywords(life) {
   toggle("kw-running", life && +life.running);
   toggle("kw-pet", life && +life.pet);
   toggle("kw-gym", life && +life.gym);
-  toggle("kw-concert", life && +life.concert);
+  toggle("kw-performance", life && +life.performance);
   toggle("kw-cafe", life && +life.cafe);
-  toggle("kw-hiking", life && +life.hiking);
-  toggle("kw-baseball", life && +life.baseball);
+  toggle("kw-movie", life && +life.movie);
+  toggle("kw-sports", life && +life.sports);
 }
 
 function toggle(id, on) {
