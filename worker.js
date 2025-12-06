@@ -115,7 +115,7 @@ export default {
           User Requirements:
           ${JSON.stringify(userReq)}
           
-          Candidate Houses (Pre-calculated avgCommuteDist included, plus region_profile describing the neighborhood's strengths for walk/running/pet/gym/concert/cafe/hiking/baseball):
+          Candidate Houses (Pre-calculated avgCommuteDist included, plus region_profile describing the neighborhood's strengths for walk/running/pet/gym/performance/cafe/movie/sports):
           ${JSON.stringify(topCandidates)}
 
           Region Profiles (unique per neighborhood):

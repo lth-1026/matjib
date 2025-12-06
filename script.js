@@ -13,10 +13,10 @@ const LIFESTYLE_META = [
   { key: "running", label: "러닝" },
   { key: "pet", label: "반려동물" },
   { key: "gym", label: "헬스" },
-  { key: "concert", label: "콘서트" },
+  { key: "performance", label: "공연" },
   { key: "cafe", label: "카페" },
-  { key: "hiking", label: "등산" },
-  { key: "baseball", label: "야구" }
+  { key: "movie", label: "영화" },
+  { key: "sports", label: "스포츠 관람" }
 ];
 
 function getRegionInfoById(id) {
@@ -1015,10 +1015,10 @@ function renderKeywords(life) {
   toggle("kw-running", life && +life.running);
   toggle("kw-pet", life && +life.pet);
   toggle("kw-gym", life && +life.gym);
-  toggle("kw-concert", life && +life.concert);
+  toggle("kw-performance", life && +life.performance);
   toggle("kw-cafe", life && +life.cafe);
-  toggle("kw-hiking", life && +life.hiking);
-  toggle("kw-baseball", life && +life.baseball);
+  toggle("kw-movie",life && +life.movie);
+  toggle("kw-sports",life && +life.sports);
 }
 
 function toggle(id, on) {
