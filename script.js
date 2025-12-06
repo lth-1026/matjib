@@ -236,100 +236,85 @@ function getDistanceFromLatLonInKm(lat1, lon1, lat2, lon2) {
 function deg2rad(deg) {
   return deg * (Math.PI / 180);
 }
-const minInput = document.getElementById("depositMin");
-const maxInput = document.getElementById("depositMax");
-const depositLabel = document.getElementById("depositLabel");
+// ========== 슬라이더 & Input 동기화 (보증금 & 월세) ==========
 
-function updateDepositRange() {
-  // min <= max になるように調整
-  if (parseInt(minInput.value) > parseInt(maxInput.value)) {
-    const tmp = minInput.value;
-    minInput.value = maxInput.value;
-    maxInput.value = tmp;
+function setupRangeSync(minSliderId, maxSliderId, minInputId, maxInputId, trackId) {
+  const minSlider = document.getElementById(minSliderId);
+  const maxSlider = document.getElementById(maxSliderId);
+  const minInput = document.getElementById(minInputId);
+  const maxInput = document.getElementById(maxInputId);
+  const track = document.getElementById(trackId);
+
+  if (!minSlider || !maxSlider || !minInput || !maxInput || !track) return;
+
+  const min = parseInt(minSlider.min);
+  const max = parseInt(minSlider.max);
+
+  function updateTrack() {
+    const minVal = parseInt(minSlider.value);
+    const maxVal = parseInt(maxSlider.value);
+    const minPercent = ((minVal - min) / (max - min)) * 100;
+    const maxPercent = ((maxVal - min) / (max - min)) * 100;
+
+    // Use theme colors: #e4d9c2 for empty, #875c44 for filled
+    track.style.background = `linear-gradient(to right, #e4d9c2 ${minPercent}%, #875c44 ${minPercent}%, #875c44 ${maxPercent}%, #e4d9c2 ${maxPercent}%)`;
   }
 
-  const minVal = parseInt(minInput.value);
-  const maxVal = parseInt(maxInput.value);
+  function onSliderChange() {
+    let minVal = parseInt(minSlider.value);
+    let maxVal = parseInt(maxSlider.value);
 
-  depositLabel.textContent = `(${minVal}만 ~ ${maxVal}만)`;
-  updateTrack();
-}
+    // Prevent cross over
+    if (minVal > maxVal) {
+      if (this === minSlider) {
+        minSlider.value = maxVal;
+        minVal = maxVal;
+      } else {
+        maxSlider.value = minVal;
+        maxVal = minVal;
+      }
+    }
 
-function updateTrack() {
-  const min = parseInt(minInput.min);
-  const max = parseInt(minInput.max);
-
-  const minVal = parseInt(minInput.value);
-  const maxVal = parseInt(maxInput.value);
-
-  const minPercent = ((minVal - min) / (max - min)) * 100;
-  const maxPercent = ((maxVal - min) / (max - min)) * 100;
-
-  const track = document.getElementById("dep-slider");
-  track.style.background = `
-    linear-gradient(
-      to right,
-      #ddd ${minPercent}%,
-      #875c44 ${minPercent}%,
-      #875c44 ${maxPercent}%,
-      #ddd ${maxPercent}%
-    )
-  `;
-}
-
-if (minInput && maxInput) {
-  minInput.addEventListener("input", updateDepositRange);
-  maxInput.addEventListener("input", updateDepositRange);
-  updateDepositRange(); // 初期表示
-}
-
-// ==========월세 슬라이더 입력 처리==========
-const r_minInput = document.getElementById("rentMin");
-const r_maxInput = document.getElementById("rentMax");
-const rentLabel = document.getElementById("rentLabel");
-
-function updateRentRange() {
-  // min <= max になるように調整
-  if (parseInt(r_minInput.value) > parseInt(r_maxInput.value)) {
-    const tmp = r_minInput.value;
-    r_minInput.value = r_maxInput.value;
-    r_maxInput.value = tmp;
+    minInput.value = minVal;
+    maxInput.value = maxVal;
+    updateTrack();
   }
 
-  const minVal = parseInt(r_minInput.value);
-  const maxVal = parseInt(r_maxInput.value);
+  function onInputChange() {
+    let minVal = parseInt(minInput.value);
+    let maxVal = parseInt(maxInput.value);
 
-  rentLabel.textContent = `(${minVal}만 ~ ${maxVal}만)`;
-  updateRentTrack();
+    // Validate
+    if (minVal < min) minVal = min;
+    if (maxVal > max) maxVal = max;
+    if (minVal > maxVal) {
+      // Just clamp without moving the other for simplicity in text input, 
+      // or swap? Let's minimal clamp.
+      if (this === minInput) minVal = maxVal;
+      else maxVal = minVal;
+    }
+
+    minSlider.value = minVal;
+    maxSlider.value = maxVal;
+    updateTrack();
+  }
+
+  minSlider.addEventListener("input", onSliderChange);
+  maxSlider.addEventListener("input", onSliderChange);
+  minInput.addEventListener("input", onInputChange); // Update on typing
+  minInput.addEventListener("change", onInputChange); // Confirm on enter/blur
+  maxInput.addEventListener("input", onInputChange);
+  maxInput.addEventListener("change", onInputChange);
+
+  // Trigger initial update from INPUT values (which are set to full range in HTML)
+  onInputChange();
 }
 
-function updateRentTrack() {
-  const min = parseInt(r_minInput.min);
-  const max = parseInt(r_minInput.max);
+// 보증금 (0~5000)
+setupRangeSync("depositMin", "depositMax", "inputDepositMin", "inputDepositMax", "dep-slider");
 
-  const minVal = parseInt(r_minInput.value);
-  const maxVal = parseInt(r_maxInput.value);
-
-  const minPercent = ((minVal - min) / (max - min)) * 100;
-  const maxPercent = ((maxVal - min) / (max - min)) * 100;
-
-  const track = document.getElementById("rent-slider");
-  track.style.background = `
-    linear-gradient(
-      to right,
-      #ddd ${minPercent}%,
-      #875c44 ${minPercent}%,
-      #875c44 ${maxPercent}%,
-      #ddd ${maxPercent}%
-    )
-  `;
-}
-
-if (r_minInput && r_maxInput) {
-  r_minInput.addEventListener("input", updateRentRange);
-  r_maxInput.addEventListener("input", updateRentRange);
-  updateRentRange(); // 初期表示
-}
+// 월세 (0~2000)
+setupRangeSync("rentMin", "rentMax", "inputRentMin", "inputRentMax", "rent-slider");
 
 //=================선택 버튼 처리=======================
 document.querySelectorAll(".chip-row").forEach((row) => {

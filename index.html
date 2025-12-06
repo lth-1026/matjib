@@ -101,7 +101,7 @@
         <!-- 보증금 슬라이드바ー -->
 
         <div class="section-title">
-          보증금 <span id="depositLabel">(0만 ~ 1920만)</span>
+          보증금
         </div>
         <div class="range-group" id="deposit-select">
           <div class="range-slider">
@@ -109,18 +109,56 @@
             <input type="range" id="depositMax" name="depositMax" min="0" max="5000" value="1920">
             <div class="slider-track" id="dep-slider"></div>
           </div>
+          <div class="price-input-container">
+            <div class="price-input-group">
+              <div class="price-label">최저</div>
+              <div class="price-field">
+                <span class="currency">₩</span>
+                <input type="number" id="inputDepositMin" value="0">
+                <span class="unit">만</span>
+              </div>
+            </div>
+            <div class="price-dash">-</div>
+            <div class="price-input-group">
+              <div class="price-label">최고</div>
+              <div class="price-field">
+                <span class="currency">₩</span>
+                <input type="number" id="inputDepositMax" value="1920">
+                <span class="unit">만</span>
+              </div>
+            </div>
+          </div>
         </div>
 
         <!-- 월세 슬라이드바-->
 
         <div class="section-title">
-          월세<span id="rentLabel">(0만 ~ 2000만)</span>
+          월세
         </div>
         <div class="range-group">
           <div class="range-slider">
             <input type="range" id="rentMin" name="rentMin" min="0" max="2000" value="0">
             <input type="range" id="rentMax" name="rentMax" min="0" max="2000" value="1200">
             <div class="slider-track" id="rent-slider"></div>
+          </div>
+          <div class="price-input-container">
+            <div class="price-input-group">
+              <div class="price-label">최저</div>
+              <div class="price-field">
+                <span class="currency">₩</span>
+                <input type="number" id="inputRentMin" value="0">
+                <span class="unit">만</span>
+              </div>
+            </div>
+            <div class="price-dash">-</div>
+            <div class="price-input-group">
+              <div class="price-label">최고</div>
+              <div class="price-field">
+                <span class="currency">₩</span>
+                <input type="number" id="inputRentMax" value="1200">
+                <span class="unit">만</span>
+              </div>
+            </div>
           </div>
         </div>
 
