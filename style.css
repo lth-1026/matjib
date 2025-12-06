@@ -762,7 +762,7 @@ input[type="range"] {
   bottom: 0;
   background-color: rgba(0, 0, 0, 0.93);
   /* Darker background */
-  z-index: 10;
+  z-index: 12;
   cursor: pointer;
   /* Add a pointer on hover */
 }
