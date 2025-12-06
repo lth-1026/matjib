@@ -325,7 +325,18 @@ document.querySelectorAll(".chip-row").forEach((row) => {
 
     if (isMulti) {
       // 복수선택 가능
-      e.target.classList.toggle("active");
+      const text = e.target.textContent.trim();
+      if (text === "전체") {
+        // "전체" 클릭 시: 나머지 모두 해제하고 본인만 활성화
+        row.querySelectorAll(".chip").forEach((c) => c.classList.remove("active"));
+        e.target.classList.add("active");
+      } else {
+        // 일반 옵션 클릭 시: "전체"가 켜져 있다면 끄기
+        e.target.classList.toggle("active");
+        // "전체" 칩 찾아서 끄기
+        const allChip = Array.from(row.querySelectorAll(".chip")).find(c => c.textContent.trim() === "전체");
+        if (allChip) allChip.classList.remove("active");
+      }
     } else {
       // 단일선택
       row.querySelectorAll(".chip").forEach((c) => c.classList.remove("active"));
@@ -352,8 +363,9 @@ if (userForm) {
 
     const includeFee = document.getElementById("includeFee").checked;
 
-    const areaChip = document.querySelector("#area-range .chip.active");
-    const areaText = areaChip ? areaChip.textContent : "전체";
+    const areaChips = document.querySelectorAll("#area-range .chip.active");
+    const areaTexts = Array.from(areaChips).map(c => c.textContent.trim());
+    const isAreaAll = areaTexts.includes("전체") || areaTexts.length === 0;
 
     // 라이프스타일 활성화 여부 확인
     const lifestyleSelections = getLifestyleSelections();
@@ -382,15 +394,21 @@ if (userForm) {
       if (checkRent < rentMin || checkRent > rentMax) return false;
 
       // (4) 면적 (평수 변환)
+      // (4) 면적 (평수 변환)
       const pyeong = h.area_m2 / 3.3058;
-      if (areaText !== "전체") {
-        if (areaText === "10평 이하" && pyeong > 10) return false;
-        if (areaText === "10평대" && (pyeong < 10 || pyeong >= 20)) return false;
-        if (areaText === "20평대" && (pyeong < 20 || pyeong >= 30)) return false;
-        if (areaText === "30평대" && (pyeong < 30 || pyeong >= 40)) return false;
-        if (areaText === "40평대" && (pyeong < 40 || pyeong >= 50)) return false;
-        if (areaText === "50평대" && (pyeong < 50 || pyeong >= 60)) return false;
-        if (areaText === "60평 이상" && pyeong < 60) return false;
+
+      if (!isAreaAll) {
+        let areaMatch = false;
+        for (const text of areaTexts) {
+          if (text === "10평 이하" && pyeong <= 10) areaMatch = true;
+          else if (text === "10평대" && pyeong >= 10 && pyeong < 20) areaMatch = true;
+          else if (text === "20평대" && pyeong >= 20 && pyeong < 30) areaMatch = true;
+          else if (text === "30평대" && pyeong >= 30 && pyeong < 40) areaMatch = true;
+          else if (text === "40평대" && pyeong >= 40 && pyeong < 50) areaMatch = true;
+          else if (text === "50평대" && pyeong >= 50 && pyeong < 60) areaMatch = true;
+          else if (text === "60평 이상" && pyeong >= 60) areaMatch = true;
+        }
+        if (!areaMatch) return false;
       }
 
       // (5) 라이프스타일 (AND 조건: 선택된 모든 조건 만족해야 함)
