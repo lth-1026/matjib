@@ -92,12 +92,10 @@ async function getAIRecommendation(filteredList) {
   }
 
   // 로딩 표시 (버튼)
-  const searchBtn = document.getElementById("searchBtn");
-  const originalBtnText = searchBtn ? searchBtn.innerHTML : "맺집 찾기";
-
-  if (searchBtn) {
-    searchBtn.disabled = true;
-    searchBtn.innerHTML = '<span class="button-spinner"></span> 분석 중...';
+  // 로딩 표시 (전체 화면)
+  const loadingOverlay = document.getElementById("loading-overlay");
+  if (loadingOverlay) {
+    loadingOverlay.style.display = "flex";
   }
 
   try {
@@ -211,10 +209,9 @@ async function getAIRecommendation(filteredList) {
     console.error(e);
     // alert("AI 추천 중 오류가 발생했습니다: " + e.message);
   } finally {
-    // 로딩 숨김 및 버튼 복구
-    if (searchBtn) {
-      searchBtn.disabled = false;
-      searchBtn.innerHTML = originalBtnText;
+    // 로딩 숨김
+    if (loadingOverlay) {
+      loadingOverlay.style.display = "none";
     }
   }
 }
@@ -1017,8 +1014,8 @@ function renderKeywords(life) {
   toggle("kw-gym", life && +life.gym);
   toggle("kw-performance", life && +life.performance);
   toggle("kw-cafe", life && +life.cafe);
-  toggle("kw-movie",life && +life.movie);
-  toggle("kw-sports",life && +life.sports);
+  toggle("kw-movie", life && +life.movie);
+  toggle("kw-sports", life && +life.sports);
 }
 
 function toggle(id, on) {
