@@ -25,29 +25,16 @@
 
 <body>
 
+  <div id="loading-overlay">
+    <div class="loading-spinner"></div>
+    <div class="loading-text">맺집 분석 중...</div>
+  </div>
+
   <div id="overlay">
     <div class="overlay-contents">
       <p>matjib에 오신걸 환영합니다!<br>원하는 조건을 선택해주세요</p>
 
-      <div class="section-title">거래유형</div>
-      <div class="chip-row" id="initial-rent-type">
-        <button class="chip active" type="button">전체</button>
-        <button class="chip" type="button">월세</button>
-        <button class="chip" type="button">전세</button>
-      </div>
 
-      <br>
-      <div class="section-title">면적</div>
-      <div class="chip-row" id="initial-area-range">
-        <button class="chip active" type="button">전체</button>
-        <button class="chip" type="button">10평 이하</button>
-        <button class="chip" type="button">10평대</button>
-        <button class="chip" type="button">20평대</button>
-        <button class="chip" type="button">30평대</button>
-        <button class="chip" type="button">40평대</button>
-        <button class="chip" type="button">50평대</button>
-        <button class="chip" type="button">60평 이상</button>
-      </div>
 
       <br>
       <div class="section-title">라이프스타일</div>
@@ -56,10 +43,10 @@
         <button class="chip" type="button">러닝</button>
         <button class="chip" type="button">반려동물</button>
         <button class="chip" type="button">헬스</button>
-        <button class="chip" type="button">콘서트</button>
+        <button class="chip" type="button">공연</button>
         <button class="chip" type="button">카페</button>
-        <button class="chip" type="button">등산</button>
-        <button class="chip" type="button">야구</button>
+        <button class="chip" type="button">영화</button>
+        <button class="chip" type="button">스포츠 관람</button>
       </div>
 
       <br>
@@ -88,101 +75,143 @@
     <form method="post" id="userForm">
 
       <aside class="sidebar">
+        <div class="sidebar-scroll-area">
 
-        <input type="hidden" name="rentType" id="rentTypeInput">
+          <input type="hidden" name="rentType" id="rentTypeInput">
 
-        <div class="section-title">거래유형</div>
-        <div class="chip-row" id="rent-type">
-          <button class="chip active" type="button">전체</button>
-          <button class="chip" type="button">월세</button>
-          <button class="chip" type="button">전세</button>
-        </div>
+          <div class="section-title">거래유형</div>
+          <div class="chip-row" id="rent-type">
+            <button class="chip active" type="button">전체</button>
+            <button class="chip" type="button">월세</button>
+            <button class="chip" type="button">전세</button>
+          </div>
 
-        <!-- 보증금 슬라이드바ー -->
+          <!-- 보증금 슬라이드바ー -->
 
-        <div class="section-title">
-          보증금 <span id="depositLabel">(0만 ~ 1920만)</span>
-        </div>
-        <div class="range-group" id="deposit-select">
-          <div class="range-slider">
-            <input type="range" id="depositMin" name="depositMin" min="0" max="5000" value="0">
-            <input type="range" id="depositMax" name="depositMax" min="0" max="5000" value="1920">
-            <div class="slider-track" id="dep-slider"></div>
+          <div class="section-title">
+            보증금
+          </div>
+          <div class="range-group" id="deposit-select">
+            <div class="range-slider">
+              <input type="range" id="depositMin" name="depositMin" min="0" max="5000" value="0">
+              <input type="range" id="depositMax" name="depositMax" min="0" max="5000" value="5000">
+              <div class="slider-track" id="dep-slider"></div>
+            </div>
+            <div class="price-input-container">
+              <div class="price-input-group">
+                <div class="price-label">최저</div>
+                <div class="price-field">
+                  <span class="currency">₩</span>
+                  <input type="number" id="inputDepositMin" value="0">
+                  <span class="unit">만</span>
+                </div>
+              </div>
+              <div class="price-dash">-</div>
+              <div class="price-input-group">
+                <div class="price-label">최고</div>
+                <div class="price-field">
+                  <span class="currency">₩</span>
+                  <input type="number" id="inputDepositMax" value="5000">
+                  <span class="unit">만</span>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- 월세 슬라이드바-->
+
+          <div class="section-title">
+            월세
+          </div>
+          <div class="range-group">
+            <div class="range-slider">
+              <input type="range" id="rentMin" name="rentMin" min="0" max="2000" value="0">
+              <input type="range" id="rentMax" name="rentMax" min="0" max="2000" value="2000">
+              <div class="slider-track" id="rent-slider"></div>
+            </div>
+            <div class="price-input-container">
+              <div class="price-input-group">
+                <div class="price-label">최저</div>
+                <div class="price-field">
+                  <span class="currency">₩</span>
+                  <input type="number" id="inputRentMin" value="0">
+                  <span class="unit">만</span>
+                </div>
+              </div>
+              <div class="price-dash">-</div>
+              <div class="price-input-group">
+                <div class="price-label">최고</div>
+                <div class="price-field">
+                  <span class="currency">₩</span>
+                  <input type="number" id="inputRentMax" value="2000">
+                  <span class="unit">만</span>
+                </div>
+              </div>
+            </div>
+          </div>
+
+
+          <div class="switch-row">
+            <span class="switch-label">관리비 포함</span>
+            <label class="switch">
+              <input type="checkbox" name="maintenanceFee" id="includeFee">
+              <span class="slider round"></span>
+            </label>
+          </div>
+
+
+          <input type="hidden" name="area" id="areaInput">
+
+          <div class="section-title">면적</div>
+          <div class="chip-row" data-multi="true" id="area-range">
+            <button class="chip active" type="button">전체</button>
+            <button class="chip" type="button">10평 이하</button>
+            <button class="chip" type="button">10평대</button>
+            <button class="chip" type="button">20평대</button>
+            <button class="chip" type="button">30평대</button>
+            <button class="chip" type="button">40평대</button>
+            <button class="chip" type="button">50평대</button>
+            <button class="chip" type="button">60평 이상</button>
+          </div>
+
+          <input type="hidden" name="walk" id="walkInput">
+          <input type="hidden" name="running" id="runningInput">
+          <input type="hidden" name="pet" id="petInput">
+          <input type="hidden" name="gym" id="gymInput">
+          <input type="hidden" name="performance" id="performanceInput">
+          <input type="hidden" name="cafe" id="cafeInput">
+          <input type="hidden" name="movie" id="movieInput">
+          <input type="hidden" name="sports" id="sportsInput">
+
+          <div class="section-title">라이프스타일</div>
+          <div class="chip-row" data-multi="true" id="lifestyle">
+            <button class="chip" type="button">산책</button>
+            <button class="chip" type="button">러닝</button>
+            <button class="chip" type="button">반려동물</button>
+            <button class="chip" type="button">헬스</button>
+            <button class="chip" type="button">공연</button>
+            <button class="chip" type="button">카페</button>
+            <button class="chip" type="button">영화</button>
+            <button class="chip" type="button">스포츠 관람</button>
+          </div>
+
+
+          <div class="section-title">통근 위치</div>
+          <div class="commute-section">
+            <div class="commute-input-row">
+              <input type="text" id="commuteInput" class="commute-input" placeholder="직장 또는 학교" name="commute" />
+              <button id="commuteAddBtn" class="commute-add-btn" type="button">추가</button>
+            </div>
+
+            <div id="commuteList" class="commute-list"></div>
+
+
           </div>
         </div>
 
-        <!-- 월세 슬라이드바-->
-
-        <div class="section-title">
-          월세<span id="rentLabel">(0만 ~ 2000만)</span>
+        <div class="sidebar-footer">
+          <button class="button-main" type="submit" id="searchBtn">상세 조건 맺집 찾기</button>
         </div>
-        <div class="range-group">
-          <div class="range-slider">
-            <input type="range" id="rentMin" name="rentMin" min="0" max="2000" value="0">
-            <input type="range" id="rentMax" name="rentMax" min="0" max="2000" value="1200">
-            <div class="slider-track" id="rent-slider"></div>
-          </div>
-        </div>
-
-
-        <div class="switch-row">
-          <span class="switch-label">관리비 포함</span>
-          <label class="switch">
-            <input type="checkbox" name="maintenanceFee" id="includeFee">
-            <span class="slider round"></span>
-          </label>
-        </div>
-
-
-        <input type="hidden" name="area" id="areaInput">
-
-        <div class="section-title">면적</div>
-        <div class="chip-row" id="area-range">
-          <button class="chip active" type="button">전체</button>
-          <button class="chip" type="button">10평 이하</button>
-          <button class="chip" type="button">10평대</button>
-          <button class="chip" type="button">20평대</button>
-          <button class="chip" type="button">30평대</button>
-          <button class="chip" type="button">40평대</button>
-          <button class="chip" type="button">50평대</button>
-          <button class="chip" type="button">60평 이상</button>
-        </div>
-
-        <input type="hidden" name="walk" id="walkInput">
-        <input type="hidden" name="running" id="runningInput">
-        <input type="hidden" name="pet" id="petInput">
-        <input type="hidden" name="gym" id="gymInput">
-        <input type="hidden" name="concert" id="concertInput">
-        <input type="hidden" name="cafe" id="cafeInput">
-        <input type="hidden" name="hiking" id="hikingInput">
-        <input type="hidden" name="baseball" id="baseballInput">
-
-        <div class="section-title">라이프스타일</div>
-        <div class="chip-row" data-multi="true" id="lifestyle">
-          <button class="chip" type="button">산책</button>
-          <button class="chip" type="button">러닝</button>
-          <button class="chip" type="button">반려동물</button>
-          <button class="chip" type="button">헬스</button>
-          <button class="chip" type="button">콘서트</button>
-          <button class="chip" type="button">카페</button>
-          <button class="chip" type="button">등산</button>
-          <button class="chip" type="button">야구</button>
-        </div>
-
-
-        <div class="section-title">통근 위치</div>
-        <div class="commute-section">
-          <div class="commute-input-row">
-            <input type="text" id="commuteInput" class="commute-input" placeholder="직장 또는 학교" name="commute" />
-            <button id="commuteAddBtn" class="commute-add-btn" type="button">추가</button>
-          </div>
-
-          <div id="commuteList" class="commute-list"></div>
-
-
-        </div>
-
-        <button class="button-main" type="submit" id="searchBtn">맺집 찾기</button>
       </aside>
     </form>
     <main class="map-area">
@@ -229,16 +258,22 @@
 
         <!-- 사용자 지정 옵션 -->
 
-        <div class="detail-section-title">키워드</div>
+        <div class="detail-section-title">
+          키워드
+          <div class="tooltip-container">
+            <span class="help-icon">?</span>
+            <div class="tooltip-msg">키워드를 클릭하면<br>키워드 기반 매물 조회가 가능합니다</div>
+          </div>
+        </div>
         <div class="icon-list">
           <div class="icon-pill" id="kw-walk" data-tag="walk">🚶 산책</div>
           <div class="icon-pill" id="kw-running" data-tag="running">🏃 러닝</div>
           <div class="icon-pill" id="kw-pet" data-tag="pet">🐶 반려동물</div>
           <div class="icon-pill" id="kw-gym" data-tag="gym">💪 헬스</div>
-          <div class="icon-pill" id="kw-concert" data-tag="concert">🎵 콘서트</div>
+          <div class="icon-pill" id="kw-performance" data-tag="performance">🎵 공연</div>
           <div class="icon-pill" id="kw-cafe" data-tag="cafe">☕ 카페</div>
-          <div class="icon-pill" id="kw-hiking" data-tag="hiking">⛰ 등산</div>
-          <div class="icon-pill" id="kw-baseball" data-tag="baseball">⚾ 야구</div>
+          <div class="icon-pill" id="kw-movie" data-tag="movie">🎬 영화</div>
+          <div class="icon-pill" id="kw-sports" data-tag="sports">🏟 스포츠 관람</div>
         </div>
 
 
