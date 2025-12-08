@@ -2,6 +2,16 @@ export default {
   async fetch(request, env, ctx) {
     const url = new URL(request.url);
 
+    const colo = request.cf?.colo;   // 예: "HKG", "NRT", "SIN"
+
+    // 🚫 Hong Kong POP(HKG) 차단
+    if (colo === "HKG") {
+      return new Response("Forbidden - HKG POP not allowed", {
+        status: 403,
+        headers: { "Content-Type": "text/plain" }
+      });
+    }
+
     // CORS handling
     if (request.method === "OPTIONS") {
       return new Response(null, {
