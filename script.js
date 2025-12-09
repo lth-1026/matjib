@@ -1,4 +1,4 @@
-const WORKER_URL = "https://matjib-ai.th20001026.workers.dev";
+const WORKER_URL = "/api";
 let map;
 let allHouses = []; // Store all house data
 let markers = []; // Store current markers
