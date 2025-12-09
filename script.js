@@ -1074,11 +1074,13 @@ function renderDetail(h, life, id) {
 
   // 상세정보 
   setText("d-area", `${h.area_m2}m²`);
-  setText("d-roomsBaths", `${h.rooms}개 / ${h.baths}개`);
+  // 방 유형 (room_type + 욕실 N개)
+  const bathCount = (h.baths != null && !isNaN(h.baths)) ? h.baths : 0;
+  const bathText = bathCount > 0 ? `욕실 ${bathCount}개` : "욕실 정보 없음";
+  setText("d-roomsBaths", `${h.room_type} (${bathText})`);
   setText("d-direction", h.direction);
-  setText("d-heating", h.heating);
   setText("d-elevator", (+h.elevator ? "있음" : "없음"));
-  setText("d-parking", `${h.parking_total}대`);
+  setText("d-parking", h.parking_total);
   setText("d-moveIn", dateDot(h.move_in_date));
   setText("d-buildingType", h.building_type);
 

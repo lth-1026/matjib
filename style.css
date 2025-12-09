@@ -30,7 +30,7 @@ header {
 }
 
 .sidebar {
-  width: 360px;
+  width: 400px;
   height: 100%;
   /* Fix height to viewport */
   background: #ffffff;
@@ -87,7 +87,7 @@ header {
 }
 
 .chip {
-  width: 79px;
+  width: 85px;
   padding: 6px 10px;
   border-radius: 999px;
   font-size: 12px;
